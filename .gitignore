@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.env
+.env.*
+pgdata/
+caddy_data/
+caddy_config/
+.vscode/
