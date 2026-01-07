@@ -1,5 +1,12 @@
 # Relay
 
+## Generate Vapid Key Pairs
+
+From Project Root:
+``docker run --rm -it node:20-alpine sh -lc \
+"npm i -g web-push >/dev/null 2>&1 && node -e \"import webpush from 'web-push'; console.log(webpush.generateVAPIDKeys());\""
+``
+
 
 ## version 0.1 MVP:
 - Open URL on phone
