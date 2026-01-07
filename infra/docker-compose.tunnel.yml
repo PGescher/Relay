@@ -1,0 +1,53 @@
+services:
+  # Reverse proxy
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+
+  # Frontend (static build)
+  web:
+    image: nginx:alpine
+    restart: unless-stopped
+    volumes:
+      - ../web/dist:/usr/share/nginx/html:ro
+
+  # Backend API
+  api:
+    image: node:20-alpine
+    restart: unless-stopped
+    working_dir: /app
+    volumes:
+      - ../api:/app
+    environment:
+      DATABASE_URL: postgres://relay:relay_pw@db:5432/relay
+      JWT_SECRET: dev_secret_change_me
+      VAPID_SUBJECT: "mailto:test@example.com"
+      VAPID_PUBLIC_KEY: ""
+      VAPID_PRIVATE_KEY: ""
+    command: sh -lc "npm ci && node server.js"
+    depends_on:
+      - db
+
+  # Database
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: relay
+      POSTGRES_USER: relay
+      POSTGRES_PASSWORD: relay_pw
+    volumes:
+      - relay_pgdata:/var/lib/postgresql/data
+
+  # Cloudflare Tunnel (free trycloudflare mode)
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: tunnel --no-autoupdate --url http://caddy:80
+    depends_on:
+      - caddy
+
+volumes:
+  relay_pgdata:

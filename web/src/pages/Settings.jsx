@@ -111,6 +111,11 @@ export default function Settings() {
         Roadmap: <br />
         
         Add Group Members Overview Tab from Settings <br />
+        Show which Group you are part of an enable leving Group <br />
+        Disable Notifications in Settings <br />
+        Notification Enable Prompt, if not enabled upon Startup <br />
+        Simplify Group Inviting and Joining, links. <br />
+        
         
         </p>
 

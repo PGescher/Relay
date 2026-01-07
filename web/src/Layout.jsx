@@ -42,10 +42,10 @@ export default function Layout() {
           bottom: 0,
           height: 56,
           paddingBottom: "env(safe-area-inset-bottom)",
-          borderTop: "1px solid #ddd",
+          borderTop: "1px solid #161616ff",
           display: "flex",
           alignItems: "center",
-          background: "white",
+          background: "#242424",
           color: "#646cff",
           zIndex: 9999
         }}

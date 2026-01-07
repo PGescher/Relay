@@ -1,12 +1,84 @@
 # Relay
 
-version 0.1 MVP:
+
+## version 0.1 MVP:
 - Open URL on phone
 - Sign up (username/password)
 - Create group → copy invite code
 - Friend logs in → join group with invite code
 - Both click Enable Notifications
 - Press Start Fitness → others get push
+
+# Design Document:
+
+Relay (MVP) — Design Document
+
+Purpose
+A lightweight accountability + motivation app for friends: create/join groups, send “Start Fitness” signals, and view an activity feed. Push notifications for real-time “someone started a workout”.
+
+Platforms
+
+PWA (iOS + Android)
+
+iOS push requires: HTTPS + Add to Home Screen + open from icon
+
+Architecture
+
+Frontend: React + Vite (built to static dist/)
+
+Backend: Node.js (Fastify) REST API
+
+Database: Postgres
+
+Push: Web Push (VAPID) + Service Worker
+
+Public access: Cloudflare Quick Tunnel (trycloudflare.com) → Caddy → web/api
+
+Core Entities
+
+users: username/password_hash, created_at
+
+groups: name, invite_code, created_by
+
+group_members: membership, role
+
+push_subscriptions: per-user web push endpoint + keys
+
+events: group feed items (type/message/timestamp)
+
+Key Flows
+
+Signup/Login → JWT stored client-side
+
+Create Group → creates group + adds owner membership
+
+Join Group → adds membership by invite code
+
+Enable Notifications → browser subscribes → POST subscription to backend
+
+Start Fitness → backend logs event + pushes notification to all subscribed members
+
+Home Feed → GET group feed, shows event list
+
+Security
+
+JWT auth for protected routes
+
+Push subscription stored per endpoint
+
+No email reset (manual reset for MVP)
+
+Tunnel avoids inbound exposure of home network
+
+Known Limitations
+
+Quick tunnel URL changes on restart
+
+Polling feed (not realtime socket yet)
+
+No group leaving / membership management yet
+
+No notification unsubscribe endpoint yet
 
 ## Startup
 
@@ -181,5 +253,40 @@ npm i vite-plugin-pwa
 exit
 ``
 
+## Cloudflared Test
+
+`` docker run --rm -it   -v "$PWD/web:/app"   -w /app   node:20-alpine   sh -lc "npm ci && npm run build" ``
+
+`` docker compose -f infra/docker-compose.tunnel.yml up -d ``
+
+`` docker compose -f infra/docker-compose.tunnel.yml logs -f cloudflared ``
+
+
+## Inspect Postgres Database
+
+A:
+``docker compose -f infra/docker-compose.tunnel.yml exec db psql -U relay -d relay``
+
+\dt                 -- list tables
+\d users            -- describe table
+select * from users limit 20;
+select * from groups;
+select * from group_members;
+select * from events order by created_at desc limit 20;
+select * from push_subscriptions;
+
+\q
+
+### Add a simple Admin Web UI?
+
+  adminer:
+    image: adminer
+    restart: unless-stopped
+    ports:
+      - "8081:8080"
+    depends_on:
+      - db
+
+    http://localhost:8081
 
 

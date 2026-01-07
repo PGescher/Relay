@@ -13,6 +13,20 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background-image: url("/watermark.png");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 100%;
+  opacity: 0.06;              /* watermark strength */
+  pointer-events: none;
+  z-index: -1;
+}
+
+
 a {
   font-weight: 500;
   color: #646cff;
@@ -57,13 +71,13 @@ button:focus-visible {
 @media (prefers-color-scheme: light) {
   :root {
     color: #213547;
-    background-color: #f9f9f9;
+    background-color: #242424;
   }
   a:hover {
     color: #747bff;
   }
   button {
-    background-color: #f9f9f9;
+    background-color: #dddcdc;
   }
 }
 
@@ -78,3 +92,6 @@ body {
   overscroll-behavior-y: none;
 }
 
+input, button, textarea, select {
+  font-size: 16px;
+}

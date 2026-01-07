@@ -1,0 +1,53 @@
+services:
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - web
+      - api
+
+  web:
+    image: nginx:alpine
+    restart: unless-stopped
+    volumes:
+      - ../web/dist:/usr/share/nginx/html:ro
+
+  api:
+    image: node:20-alpine
+    restart: unless-stopped
+    working_dir: /app
+    volumes:
+      - ../api:/app
+    environment:
+      DATABASE_URL: postgres://relay:relay_pw@db:5432/relay
+      JWT_SECRET: "CHANGE_THIS_TO_A_LONG_RANDOM_SECRET"
+      VAPID_SUBJECT: "mailto:you@example.com"
+      VAPID_PUBLIC_KEY: ""
+      VAPID_PRIVATE_KEY: ""
+      # Optional: if you make CORS strict later, you can set allowed origin
+      # PUBLIC_ORIGIN: "https://yourdomain.tld"
+    command: sh -lc "npm ci && node server.js"
+    depends_on:
+      - db
+
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: relay
+      POSTGRES_USER: relay
+      POSTGRES_PASSWORD: relay_pw
+    volumes:
+      - relay_pgdata:/var/lib/postgresql/data
+
+volumes:
+  relay_pgdata:
+  caddy_data:
+  caddy_config:

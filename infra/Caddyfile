@@ -1,0 +1,13 @@
+:80 {
+  encode gzip zstd
+
+  # API requests
+  handle_path /api/* {
+    reverse_proxy api:3000
+  }
+
+  # Everything else goes to the frontend container (nginx)
+  handle {
+    reverse_proxy web:80
+  }
+}
