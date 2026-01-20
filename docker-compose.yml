@@ -1,0 +1,43 @@
+services:
+  db:
+    image: postgres:15-alpine
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_PASSWORD: pass
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "5432:5432"
+
+  api:
+    build: .
+    environment:
+      - DATABASE_URL=postgresql://postgres:pass@db:5432/postgres
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/Relay
+    command: pnpm --filter @relay/api dev
+
+  web:
+    build: .
+    ports:
+      - "5173:5173"
+    volumes:
+      - .:/Relay
+    command: pnpm --filter @relay/web dev
+
+  tunnel:
+    image: cloudflare/cloudflared
+    command: tunnel --url http://web:5173
+    restart: always
+
+volumes:
+  db_data:
