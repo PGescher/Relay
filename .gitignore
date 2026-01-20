@@ -1,8 +1,66 @@
+# --- Dependencies ---
 node_modules/
-dist/
+.pnpm-debug.log*
+
+# --- Environment / Secrets ---
+# Crucial: Never commit your database URLs or JWT secrets
 .env
-.env.*
-pgdata/
-caddy_data/
-caddy_config/
-.vscode/
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.env
+# If you use a specific secret file for Cloudflare
+.cloudflared/
+
+# --- Build / Distribution ---
+dist/
+build/
+out/
+.next/
+*.tsbuildinfo
+# Vite PWA specific
+dev-dist/
+html-report/
+
+# --- Prisma ---
+# We keep the 'migrations' folder but ignore the generated client
+# if you set a custom output path outside of node_modules
+# .prisma/
+
+# --- Docker ---
+.docker-compose.override.yml
+# Ignore local postgres data if you mount it to a local folder instead of a volume
+# pgdata/
+
+# --- Operating System ---
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+
+# --- IDEs (VS Code / IntelliJ) ---
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/launch.json
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# --- Logs ---
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# --- Testing ---
+/coverage
+.nyc_output
+
+# --- TypeScript ---
+# Only if you use a separate declaration folder
+# declarations/
+apps/web/.vite/deps/package.json
+apps/web/.vite/deps/_metadata.json

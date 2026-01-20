@@ -1,0 +1,9 @@
+{
+  "name": "relay-monorepo",
+  "private": true,
+  "scripts": {
+    "dev": "docker-compose up",
+    "build": "pnpm -r build",
+    "db:migrate": "pnpm --filter @relay/api prisma migrate dev"
+  }
+}
