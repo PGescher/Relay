@@ -1,8 +1,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Home, MessageSquare, Zap, User, LogOut, Sparkles, LucideIcon, Activity } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { Home, MessageSquare, Zap, User, LogOut, Sparkles, LucideIcon } from 'lucide-react';
 import ThemeToggle from '../ui/ThemeToggle';
 import { useApp } from '../../context/AppContext'; //Activity Status
 
@@ -59,10 +59,15 @@ const AppShell: React.FC<AppShellProps> = ({ children, onLogout }) => {
     }
   };
 
+  // Determine if we should show the pill: 
+  // Show it if a workout is active AND we aren't currently looking at the gym screen
+  const isGymPage = location.pathname.startsWith('/activities/gym');
+  const showLivePill = currentWorkout && !isGymPage;
+
   return (
-    <div className="flex flex-col min-h-screen bg-[var(--bg)] text-[var(--text)] transition-colors overflow-x-hidden">
-      {/* Top Bar */}
-      <header className="sticky top-0 z-50 bg-[var(--bg)]/80 backdrop-blur-md border-b border-[var(--border)] px-6 h-16 flex items-center justify-between">
+    <div className="flex flex-col min-h-screen bg-[var(--bg)] text-[var(--text)] transition-colors">
+      {/* MAIN TOP BAR - ALWAYS FIXED AT THE TOP */}
+      <header className="fixed top-0 left-0 right-0 z-[100] bg-[var(--bg)]/80 backdrop-blur-md border-b border-[var(--border)] px-6 h-16 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 bg-[var(--primary)] rounded-lg flex items-center justify-center">
             <Sparkles className="text-white w-5 h-5" />
@@ -70,15 +75,15 @@ const AppShell: React.FC<AppShellProps> = ({ children, onLogout }) => {
           <span className="text-lg font-black tracking-tighter uppercase">Relay</span>
         </div>
 
-        {/*ACTIVE STATUS INDICATOR */}
-        {currentWorkout && (
+        {/* LIVE ACTIVITY PILL (Only shows when navigating away from gym) */}
+        {showLivePill && (
           <Link 
             to="/activities/gym" 
-            className="flex items-center gap-2 bg-blue-50 border border-blue-100 px-3 py-1.5 rounded-full animate-pulse shadow-sm shadow-blue-200"
+            className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2 bg-blue-600 px-3 py-1 rounded-full animate-pulse shadow-lg shadow-blue-500/20"
           >
-            <div className="w-2 h-2 bg-blue-600 rounded-full" />
-            <span className="text-[10px] font-black text-blue-600 uppercase tracking-tighter">
-              LIVE: {formatShortTime(elapsed)}
+            <div className="w-1.5 h-1.5 bg-white rounded-full" />
+            <span className="text-[10px] font-black text-white uppercase tracking-tighter">
+              LIVE {formatShortTime(elapsed)}
             </span>
           </Link>
         )}
@@ -94,16 +99,13 @@ const AppShell: React.FC<AppShellProps> = ({ children, onLogout }) => {
         </div>
       </header>
 
-      {/* Main Content with Swipe Gestures */}
+      {/* Main Content: pt-16 accounts for the Main Header height */}
       <motion.main 
         key={location.pathname}
         drag="x"
         dragConstraints={{ left: 0, right: 0 }}
         onDragEnd={handleSwipe}
-        initial={{ opacity: 0, x: 10 }}
-        animate={{ opacity: 1, x: 0 }}
-        exit={{ opacity: 0, x: -10 }}
-        className="flex-1 w-full max-w-xl mx-auto p-6 touch-pan-y"
+        className="flex-1 w-full max-w-xl mx-auto touch-pan-y pt-16"
       >
         {children}
       </motion.main>

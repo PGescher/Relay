@@ -12,10 +12,15 @@ const ActiveWorkout: React.FC = () => {
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setTimer(Math.floor((Date.now() - (currentWorkout?.startTime || Date.now())) / 1000));
+      setElapsed();
     }, 1000);
     return () => clearInterval(interval);
   }, [currentWorkout]);
+
+  const setElapsed = () => {
+    if (!currentWorkout) return;
+    setTimer(Math.floor((Date.now() - currentWorkout.startTime) / 1000));
+  };
 
   const formatTime = (seconds: number) => {
     const hrs = Math.floor(seconds / 3600);
@@ -77,96 +82,105 @@ const ActiveWorkout: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[var(--bg)] p-6 animate-in slide-in-from-right duration-300 pb-32">
-      {/* Header */}
-      <div className="flex justify-between items-center mb-8">
-        <div>
-          <h2 className="text-3xl font-black italic">ACTIVE<span className="text-blue-600">.</span></h2>
-          <div className="flex items-center gap-2 text-blue-600 font-black">
-            <Clock size={16} />
-            <span>{formatTime(timer)}</span>
-          </div>
-        </div>
+    // Changed: Added pb-40 to ensure the last card isn't hidden by the App Nav
+    <div className="min-h-screen bg-[var(--bg)] animate-in slide-in-from-right duration-300">
+      {/* SUB-HEADER: FIXED BELOW THE MAIN HEADER */}
+      {/* top-16 = 64px (the height of the AppShell header) */}
+      <div className="fixed top-16 left-0 right-0 z-[90] bg-blue-600 text-white px-6 py-3 flex items-center justify-between shadow-lg">
         <button 
             onClick={() => { if(confirm('Cancel workout?')) setCurrentWorkout(null); }}
-            className="p-3 bg-red-50 text-red-500 rounded-2xl"
+            className="p-2 bg-white/10 hover:bg-white/20 rounded-xl transition-colors"
         >
-          <X size={20} />
+          <X size={18} />
+        </button>
+
+        <div className="flex items-center gap-3">
+            <div className="flex flex-col items-end">
+                <span className="text-[8px] font-black uppercase tracking-[0.2em] opacity-80">Duration</span>
+                <span className="text-lg font-black italic leading-none">{formatTime(timer)}</span>
+            </div>
+            <div className="w-px h-8 bg-white/20" />
+            <div className="flex flex-col items-start">
+                <span className="text-[8px] font-black uppercase tracking-[0.2em] opacity-80">Status</span>
+                <span className="text-sm font-black italic leading-none uppercase">Live Session</span>
+            </div>
+        </div>
+
+        <button 
+            onClick={finishWorkout}
+            className="bg-white text-blue-600 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-sm hover:bg-gray-50 active:scale-95 transition-all"
+        >
+          Finish
         </button>
       </div>
 
-      {/* Exercise Logs */}
-      <div className="space-y-6">
-        {currentWorkout?.logs.map((log, exIndex) => (
-          <div key={exIndex} className="bg-[var(--bg-card)] border border-[var(--border)] rounded-3xl p-5">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="font-black italic text-lg">{log.exerciseName}</h3>
-              <button className="text-gray-300"><ChevronDown size={20} /></button>
-            </div>
+      {/* CONTENT AREA */}
+      {/* pt-20 inside this div + top-16 fixed header = 144px total offset */}
+      <div className="p-6 pt-20 space-y-6 pb-40">
+        <div className="space-y-6">
+            {currentWorkout?.logs.map((log, exIndex) => (
+               <div key={exIndex} className="bg-[var(--bg-card)] border border-[var(--border)] rounded-3xl p-5 shadow-sm">
+                  {/* ... Exercise Card Content ... */}
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="font-black italic text-lg">{log.exerciseName}</h3>
+                    <button className="text-gray-300"><ChevronDown size={20} /></button>
+                  </div>
 
-            <div className="space-y-2">
-              <div className="grid grid-cols-4 gap-2 px-2 text-[10px] font-black uppercase text-gray-400">
-                <span>Set</span>
-                <span>Lbs</span>
-                <span>Reps</span>
-                <span className="text-center">Done</span>
-              </div>
+                  <div className="space-y-2">
+                    <div className="grid grid-cols-4 gap-2 px-2 text-[10px] font-black uppercase text-gray-400">
+                      <span>Set</span>
+                      <span>Lbs</span>
+                      <span>Reps</span>
+                      <span className="text-center">Done</span>
+                    </div>
 
-              {log.sets.map((set, setIndex) => (
-                <div key={set.id} className={`grid grid-cols-4 gap-2 items-center p-2 rounded-xl transition-colors ${set.isCompleted ? 'bg-green-50' : ''}`}>
-                  <span className="font-black text-sm">{setIndex + 1}</span>
-                  <input 
-                    type="number" 
-                    value={set.weight || ''} 
-                    onChange={(e) => updateSet(exIndex, setIndex, { weight: parseFloat(e.target.value) })}
-                    placeholder="0"
-                    className="bg-white border border-gray-100 rounded-lg p-2 text-xs font-bold text-center w-full"
-                  />
-                  <input 
-                    type="number" 
-                    value={set.reps || ''} 
-                    onChange={(e) => updateSet(exIndex, setIndex, { reps: parseInt(e.target.value) })}
-                    placeholder="0"
-                    className="bg-white border border-gray-100 rounded-lg p-2 text-xs font-bold text-center w-full"
-                  />
+                    {log.sets.map((set, setIndex) => (
+                      <div key={set.id} className={`grid grid-cols-4 gap-2 items-center p-2 rounded-xl transition-colors ${set.isCompleted ? 'bg-green-50' : ''}`}>
+                        <span className="font-black text-sm">{setIndex + 1}</span>
+                        <input 
+                          type="number" 
+                          value={set.weight || ''} 
+                          onChange={(e) => updateSet(exIndex, setIndex, { weight: parseFloat(e.target.value) })}
+                          placeholder="0"
+                          className="bg-white border border-gray-100 rounded-lg p-2 text-xs font-bold text-center w-full"
+                        />
+                        <input 
+                          type="number" 
+                          value={set.reps || ''} 
+                          onChange={(e) => updateSet(exIndex, setIndex, { reps: parseInt(e.target.value) })}
+                          placeholder="0"
+                          className="bg-white border border-gray-100 rounded-lg p-2 text-xs font-bold text-center w-full"
+                        />
+                        <button 
+                          onClick={() => updateSet(exIndex, setIndex, { isCompleted: !set.isCompleted })}
+                          className={`flex justify-center items-center h-8 w-8 mx-auto rounded-lg transition-all ${set.isCompleted ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-400'}`}
+                        >
+                          <Check size={16} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+
                   <button 
-                    onClick={() => updateSet(exIndex, setIndex, { isCompleted: !set.isCompleted })}
-                    className={`flex justify-center items-center h-8 w-8 mx-auto rounded-lg transition-all ${set.isCompleted ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-400'}`}
+                    onClick={() => addSet(exIndex)}
+                    className="w-full mt-4 border-2 border-dashed border-gray-200 p-3 rounded-xl text-gray-400 font-bold text-xs hover:border-blue-200 hover:text-blue-400 transition-all"
                   >
-                    <Check size={16} />
+                    + ADD SET
                   </button>
-                </div>
-              ))}
-            </div>
+               </div>
+            ))}
 
             <button 
-              onClick={() => addSet(exIndex)}
-              className="w-full mt-4 border-2 border-dashed border-gray-200 p-3 rounded-xl text-gray-400 font-bold text-xs hover:border-blue-200 hover:text-blue-400 transition-all"
+              onClick={() => setShowExercisePicker(true)}
+              className="w-full bg-blue-50 text-blue-600 p-6 rounded-[24px] font-black flex items-center justify-center gap-2"
             >
-              + ADD SET
+              <Plus size={20} strokeWidth={3} />
+              ADD EXERCISE
             </button>
-          </div>
-        ))}
-
-        <button 
-          onClick={() => setShowExercisePicker(true)}
-          className="w-full bg-blue-50 text-blue-600 p-6 rounded-[24px] font-black flex items-center justify-center gap-2 hover:bg-blue-100 transition-all"
-        >
-          <Plus size={20} strokeWidth={3} />
-          ADD EXERCISE
-        </button>
+        </div>
       </div>
-
-      {/* Floating Action Button for Finish */}
-      <div className="fixed bottom-8 left-6 right-6 max-w-md mx-auto z-30">
-        <button 
-          onClick={finishWorkout}
-          className="w-full bg-black text-white p-6 rounded-[32px] font-black text-lg shadow-2xl shadow-black/20 hover:scale-105 active:scale-95 transition-all"
-        >
-          FINISH WORKOUT
-        </button>
-      </div>
-
+      
+      {/* Modal code ... */}
       {/* Exercise Picker Modal */}
       {showExercisePicker && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex flex-col justify-end p-4">
@@ -196,5 +210,4 @@ const ActiveWorkout: React.FC = () => {
     </div>
   );
 };
-
 export default ActiveWorkout;
