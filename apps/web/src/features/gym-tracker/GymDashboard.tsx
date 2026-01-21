@@ -1,15 +1,16 @@
 import React from 'react';
-import { Play, History, Trophy, TrendingUp, ChevronRight } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Play, History, Trophy, TrendingUp, ChevronRight, Activity } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { WorkoutSession } from '@relay/shared';
 
-import ActiveWorkout from './ActiveWorkout'; // 1. Import your ActiveWorkout component
+import ActiveWorkout from './ActiveWorkout';
 
 const GymDashboard: React.FC = () => {
-  const { currentWorkout, setCurrentWorkout, setActiveTab, workoutHistory } = useApp();
-
-  // 2. If there is an active workout, show the ActiveWorkout screen instead of the Dashboard
-  if (currentWorkout) {
+  const { currentWorkout, setCurrentWorkout, setActiveTab, workoutHistory, isViewingActiveWorkout, setIsViewingActiveWorkout } = useApp();
+  const navigate = useNavigate();
+  // Important: If we have an active workout, show it if the global state is true
+  if (currentWorkout && isViewingActiveWorkout) {
     return <ActiveWorkout />;
   }
   
@@ -18,12 +19,12 @@ const GymDashboard: React.FC = () => {
       id: Math.random().toString(36).substr(2, 9),
       startTime: Date.now(),
       logs: [],
-      status: 'active', // Note: Check if 'active' is allowed in WorkoutSession status
+      status: 'active',
       module: 'GYM'
     };
     setCurrentWorkout(newWorkout);
     // Navigate to the active workout screen
-    setActiveTab('gym-active'); // Or however you route to ActiveWorkout.tsx
+    navigate('/activities/gym/active');
   };
 
   return (
@@ -33,15 +34,27 @@ const GymDashboard: React.FC = () => {
         <p className="text-[var(--text-muted)] font-medium">Precision tracking for peak performance.</p>
       </div>
 
-      <button 
-        onClick={startWorkout}
-        className="w-full bg-black text-white p-8 rounded-[32px] flex flex-col items-center justify-center gap-4 hover:scale-[1.02] active:scale-95 transition-all shadow-xl shadow-blue-500/10"
-      >
-        <div className="bg-white/10 p-4 rounded-full">
-            <Play fill="white" size={32} />
-        </div>
-        <span className="font-black text-xl tracking-tight">START NEW WORKOUT</span>
-      </button>
+      {currentWorkout ? (
+        /* RESUME BUTTON -> Just a link to the active route */
+        <button 
+          onClick={() => navigate('/activities/gym/active')}
+          className="w-full bg-blue-600 text-white p-8 rounded-[32px] flex flex-col items-center justify-center gap-4..."
+        >
+          {/* ... icon ... */}
+          <span className="font-black text-xl tracking-tight uppercase">Resume Session</span>
+        </button>
+      ) : (
+        /* START NEW WORKOUT BUTTON */
+        <button 
+          onClick={startWorkout}
+          className="w-full bg-black text-white p-8 rounded-[32px] flex flex-col items-center justify-center gap-4 hover:scale-[1.02] active:scale-95 transition-all shadow-xl shadow-black/10"
+        >
+          <div className="bg-white/10 p-4 rounded-full">
+              <Play fill="white" size={32} />
+          </div>
+          <span className="font-black text-xl tracking-tight">START NEW WORKOUT</span>
+        </button>
+      )}
 
       <div className="grid grid-cols-1 gap-3">
         <DashboardAction 

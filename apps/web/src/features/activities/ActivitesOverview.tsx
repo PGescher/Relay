@@ -2,6 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Dumbbell, Timer, Navigation } from 'lucide-react';
 
+
 const ActivitiesOverview: React.FC = () => {
   const navigate = useNavigate();
 
@@ -16,10 +17,11 @@ const ActivitiesOverview: React.FC = () => {
           onClick={() => navigate('/activities/gym')} 
         />
         <ModuleCard 
-          label="Running" 
+          label="Running - Coming Soon"
           icon={<Timer size={32} />} 
           color="bg-orange-500" 
-          onClick={() => navigate('/activities/run')} 
+          //onClick={() => navigate('/activities/run')}
+          onClick={() => void{}} 
         />
       </div>
     </div>

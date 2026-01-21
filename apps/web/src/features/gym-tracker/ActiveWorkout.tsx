@@ -1,21 +1,27 @@
 
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 import { EXERCISES } from './constants.tsx';
-import { Plus, Check, Trash2, ChevronDown, Clock, X } from 'lucide-react';
+import { Plus, Check, Trash2, ChevronDown, Clock, X, ArrowLeft } from 'lucide-react';
 import { SetLog, ExerciseLog, WorkoutSession } from '@relay/shared';
 
 const ActiveWorkout: React.FC = () => {
-  const { currentWorkout, setCurrentWorkout, setWorkoutHistory, workoutHistory, setActiveTab } = useApp();
+  const { currentWorkout, setCurrentWorkout, setWorkoutHistory, workoutHistory, setActiveTab} = useApp();
   const [timer, setTimer] = useState(0);
   const [showExercisePicker, setShowExercisePicker] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
-    const interval = setInterval(() => {
+    if (!currentWorkout) {
+      navigate('/activities/gym', { replace: true });
+    } else {
+      const interval = setInterval(() => {
       setElapsed();
     }, 1000);
     return () => clearInterval(interval);
-  }, [currentWorkout]);
+    }
+  }, [currentWorkout, navigate]);
 
   const setElapsed = () => {
     if (!currentWorkout) return;
@@ -78,8 +84,18 @@ const ActiveWorkout: React.FC = () => {
     };
     setWorkoutHistory([finished, ...workoutHistory]);
     setCurrentWorkout(null);
-    setActiveTab('history');
+    navigate('/activities/gym/history', { replace: true });
   };
+
+  const cancelWorkout = () => {
+    if (confirm('Cancel workout? Data will be lost.')) {
+      setCurrentWorkout(null);
+      // 3. USE REPLACE: Swaps "/active" with "/gym"
+      navigate('/activities/gym', { replace: true });
+    }
+  };
+
+  if (!currentWorkout) return null;
 
   return (
     // Changed: Added pb-40 to ensure the last card isn't hidden by the App Nav
@@ -87,8 +103,9 @@ const ActiveWorkout: React.FC = () => {
       {/* SUB-HEADER: FIXED BELOW THE MAIN HEADER */}
       {/* top-16 = 64px (the height of the AppShell header) */}
       <div className="fixed top-16 left-0 right-0 z-[90] bg-blue-600 text-white px-6 py-3 flex items-center justify-between shadow-lg">
+
         <button 
-            onClick={() => { if(confirm('Cancel workout?')) setCurrentWorkout(null); }}
+            onClick={cancelWorkout}
             className="p-2 bg-white/10 hover:bg-white/20 rounded-xl transition-colors"
         >
           <X size={18} />

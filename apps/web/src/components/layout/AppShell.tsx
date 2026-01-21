@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Home, MessageSquare, Zap, User, LogOut, Sparkles, LucideIcon } from 'lucide-react';
+import { ArrowLeft, Home, MessageSquare, Zap, User, LogOut, Sparkles, LucideIcon } from 'lucide-react';
 import ThemeToggle from '../ui/ThemeToggle';
 import { useApp } from '../../context/AppContext'; //Activity Status
 
@@ -27,6 +27,12 @@ const AppShell: React.FC<AppShellProps> = ({ children, onLogout }) => {
   const navigate = useNavigate();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [elapsed, setElapsed] = useState(0);
+
+  // Root paths have NO back button. Everything else gets one.
+  const isRootPath = ['/feed', '/home', '/activities'].includes(location.pathname);
+
+  // Show Pill if workout exists AND we are NOT on the active page
+  const showLivePill = currentWorkout && location.pathname !== '/activities/gym/active';
 
   //Simple timer logic for the Nav Bar
   useEffect(() => {
@@ -62,28 +68,40 @@ const AppShell: React.FC<AppShellProps> = ({ children, onLogout }) => {
   // Determine if we should show the pill: 
   // Show it if a workout is active AND we aren't currently looking at the gym screen
   const isGymPage = location.pathname.startsWith('/activities/gym');
-  const showLivePill = currentWorkout && !isGymPage;
+  //const showLivePill = currentWorkout && !isGymPage;
 
   return (
-    <div className="flex flex-col min-h-screen bg-[var(--bg)] text-[var(--text)] transition-colors">
+    <div className="flex flex-col min-h-screen bg-[var(--bg)] text-[var(--text)] transition-colors overflow-x-hidden">
       {/* MAIN TOP BAR - ALWAYS FIXED AT THE TOP */}
       <header className="fixed top-0 left-0 right-0 z-[100] bg-[var(--bg)]/80 backdrop-blur-md border-b border-[var(--border)] px-6 h-16 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-[var(--primary)] rounded-lg flex items-center justify-center">
-            <Sparkles className="text-white w-5 h-5" />
-          </div>
+          {/* BACK BUTTON LOGIC */}
+          {/* DYNAMIC BACK BUTTON */}
+          {!isRootPath ? (
+            <button 
+              onClick={() => navigate(-1)} // <--- This now works perfectly everywhere
+              className="p-2 -ml-2 hover:bg-[var(--bg-card)] rounded-xl transition-colors"
+            >
+              <ArrowLeft size={20} />
+            </button>
+          ) : (
+            <div className="w-8 h-8 bg-[var(--primary)] rounded-lg flex items-center justify-center">
+              <Sparkles className="text-white w-5 h-5" />
+            </div>
+          )}
           <span className="text-lg font-black tracking-tighter uppercase">Relay</span>
         </div>
 
-        {/* LIVE ACTIVITY PILL (Only shows when navigating away from gym) */}
+        {/* LIVE ACTIVITY PILL (Only shows when navigating away from workout) */}
+         {/* PILL - Takes you to the URL, not a state toggle */}
         {showLivePill && (
           <Link 
-            to="/activities/gym" 
+            to="/activities/gym/active" 
             className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2 bg-blue-600 px-3 py-1 rounded-full animate-pulse shadow-lg shadow-blue-500/20"
           >
             <div className="w-1.5 h-1.5 bg-white rounded-full" />
             <span className="text-[10px] font-black text-white uppercase tracking-tighter">
-              LIVE {formatShortTime(elapsed)}
+              LIVE SESSION
             </span>
           </Link>
         )}

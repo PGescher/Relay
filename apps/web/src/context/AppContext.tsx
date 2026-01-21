@@ -10,6 +10,8 @@ interface AppContextType {
   workoutHistory: WorkoutSession[];
   setWorkoutHistory: React.Dispatch<React.SetStateAction<WorkoutSession[]>>;
   setActiveTab: (tab: string) => void;
+  isViewingActiveWorkout: boolean;
+  setIsViewingActiveWorkout: (val: boolean) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -17,6 +19,7 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [currentWorkout, setCurrentWorkout] = useState<WorkoutSession | null>(null);
   const [workoutHistory, setWorkoutHistory] = useState<WorkoutSession[]>([]);
+  const [isViewingActiveWorkout, setIsViewingActiveWorkout] = useState(false);
   const navigate = useNavigate();
 
   const setActiveTab = (tab: string) => {
@@ -31,7 +34,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       setCurrentWorkout, 
       workoutHistory, 
       setWorkoutHistory,
-      setActiveTab 
+      setActiveTab,
+      isViewingActiveWorkout,
+      setIsViewingActiveWorkout
     }}>
       {children}
     </AppContext.Provider>
