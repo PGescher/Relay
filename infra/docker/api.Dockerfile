@@ -15,6 +15,8 @@ COPY packages/shared/package.json packages/shared/package.json
 # Install deps for api (+ its workspace deps)
 RUN pnpm install --frozen-lockfile --filter @relay/api...
 
+RUN pnpm config set ignore-scripts false
+
 # Prisma schema muss für generate vorhanden sein
 COPY apps/api/prisma apps/api/prisma
 
@@ -42,7 +44,9 @@ COPY packages/shared packages/shared
 # COPY packages/<x> packages/<x>
 
 # Build TS -> dist
-RUN pnpm --filter @relay/api build
+#RUN pnpm --filter @relay/api build
+RUN pnpm --filter @relay/api exec tsc -p apps/api/tsconfig.build.json
+
 
 
 # ---------- runtime ----------
