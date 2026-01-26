@@ -13,7 +13,7 @@ COPY packages/shared/package.json packages/shared/package.json
 # COPY packages/<x>/package.json packages/<x>/package.json
 
 # Install deps for api (+ its workspace deps)
-RUN pnpm install --frozen-lockfile --filter @relay/api...
+RUN pnpm install --frozen-lockfile --filter @relay/api... --prod=false
 
 RUN pnpm config set ignore-scripts false
 
