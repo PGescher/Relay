@@ -24,25 +24,27 @@ COPY apps/api apps/api
 COPY packages/shared packages/shared
 
 # 6. Run the build (tsc will be found now)
+RUN pnpm --filter @relay/shared build
 RUN pnpm -C apps/api run build
 
+# ---------- runtime-stage ----------
 # ---------- runtime-stage ----------
 FROM node:20-alpine AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
-
-# Install pnpm in runtime for production pruned install (optional but recommended)
 RUN corepack enable
 
-# Copy only what is needed for execution
-COPY --from=build /app/apps/api/dist ./apps/api/dist
-COPY --from=build /app/apps/api/package.json ./apps/api/package.json
-COPY --from=build /app/package.json ./package.json
-COPY --from=build /app/pnpm-workspace.yaml ./pnpm-workspace.yaml
-COPY --from=build /app/pnpm-lock.yaml ./pnpm-lock.yaml
+# Kopiere die gebauten Dateien und die package.json
+# Wir kopieren jetzt den gesamten dist-Ordner flach in den Workdir
+COPY --from=build /app/apps/api/dist ./dist
+COPY --from=build /app/apps/api/package.json ./package.json
+COPY --from=build /app/package.json ./root-package.json
+# Falls du Prisma nutzt:
+# COPY --from=build /app/apps/api/prisma ./prisma 
 
-# Re-install only production dependencies to keep image small
-RUN pnpm install --prod --frozen-lockfile --filter @relay/api...
+# Installiere nur Production-Deps
+RUN pnpm install --prod --ignore-scripts
 
 EXPOSE 3000
-CMD ["node", "apps/api/dist/index.js"]
+# Starte die Datei dort, wo sie jetzt wirklich liegt:
+CMD ["node", "dist/index.js"]
