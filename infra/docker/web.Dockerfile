@@ -1,25 +1,26 @@
 # ---------- Build Stage ----------
 FROM node:20-alpine AS build
-
 WORKDIR /app
 
-# pnpm aktivieren
-RUN corepack enable
+# 1. Installiere pnpm
+RUN corepack enable && corepack prepare pnpm@latest --activate
 
-# Nur das kopieren, was pnpm braucht (Cache!)
-COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
-COPY apps/web/package.json apps/web/package.json
-COPY packages/shared/package.json packages/shared/package.json
+# 2. Kopiere die Workspace-Konfiguration und Lockfile (WICHTIG!)
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
 
-# Dependencies installieren (nur web + shared)
-RUN pnpm install --frozen-lockfile --filter @relay/web...
+# 3. Kopiere die package.json Dateien ALLER Pakete (für effizientes Caching)
+COPY apps/web/package.json ./apps/web/
+COPY packages/shared/package.json ./packages/shared/
 
-# Source Code kopieren
-COPY packages/shared packages/shared
-COPY apps/web apps/web
-COPY packages packages
+# 4. Jetzt erst pnpm install
+RUN pnpm install --frozen-lockfile
 
-# Build ausführen
+# 5. Kopiere den Quellcode von shared und web
+COPY packages/shared ./packages/shared
+COPY apps/web ./apps/web
+
+# 6. Baue erst shared, dann web
+RUN pnpm --filter @relay/shared build
 RUN pnpm --filter @relay/web build
 
 
