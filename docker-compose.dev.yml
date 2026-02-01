@@ -1,44 +1,59 @@
 services:
   db:
-    image: postgres:15-alpine
-    volumes:
-      - db_data:/var/lib/postgresql/data
+    image: postgres:16
     environment:
-      POSTGRES_PASSWORD: pass
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: relay
     ports:
       - "5432:5432"
+    volumes:
+      - relay_db:/var/lib/postgresql/data
 
   api:
-    build: .
+    image: node:20-alpine
+    working_dir: /app/apps/api
     environment:
-      - DATABASE_URL=postgresql://postgres:pass@db:5432/postgres
-    depends_on:
-      db:
-        condition: service_healthy
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/relay
+    command: sh -lc "
+      corepack enable &&
+      pnpm config set ignore-scripts false &&
+      pnpm install --frozen-lockfile &&
+      pnpm rebuild @prisma/engines bcrypt esbuild prisma &&
+      pnpm exec prisma generate &&
+      pnpm dev
+      "
     ports:
       - "3000:3000"
     volumes:
-      - .:/Relay
-    command: pnpm --filter @relay/api dev
+      - .:/app
+      - api_root_node_modules:/app/node_modules
+      - api_app_node_modules:/app/apps/api/node_modules
+    depends_on:
+      - db
 
   web:
-    build: .
+    image: node:20-alpine
+    working_dir: /app/apps/web
+    command: sh -lc "
+      corepack enable &&
+      pnpm config set ignore-scripts false &&
+      pnpm install --frozen-lockfile &&
+      pnpm rebuild esbuild &&
+      pnpm dev --host 0.0.0.0
+      "
     ports:
       - "5173:5173"
     volumes:
-      - .:/Relay
-    command: pnpm --filter @relay/web dev --host 0.0.0.0
-
-
-  tunnel:
-    image: cloudflare/cloudflared
-    command: tunnel --url http://web:5173
-    restart: always
+      - .:/app
+      - web_root_node_modules:/app/node_modules
+      - web_app_node_modules:/app/apps/web/node_modules
+    depends_on:
+      - api
 
 volumes:
-  db_data:
+  relay_db:
+  api_root_node_modules:
+  api_app_node_modules:
+  web_root_node_modules:
+  web_app_node_modules:

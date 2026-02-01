@@ -1,50 +1,45 @@
-# ---------- build-stage ----------
+# ---------- build stage ----------
 FROM node:20-alpine AS build
 WORKDIR /app
-
-# Enable corepack for pnpm
 RUN corepack enable
 
-# 1. Copy workspace configuration
-COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
-
-# 2. Copy package.json files for all relevant workspaces
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
 COPY apps/api/package.json apps/api/package.json
 COPY packages/shared/package.json packages/shared/package.json
 
-# 3. Install ALL dependencies (including devDeps for tsc)
-RUN pnpm install --frozen-lockfile --filter @relay/api...
+RUN pnpm install --frozen-lockfile
 
-# 4. Copy Prisma schema and generate client
-COPY apps/api/prisma apps/api/prisma
-RUN pnpm --filter @relay/api exec prisma generate
-
-# 5. Copy source code
-COPY apps/api apps/api
 COPY packages/shared packages/shared
+COPY apps/api apps/api
 
-# 6. Run the build (tsc will be found now)
-RUN pnpm --filter @relay/shared build
+# Build shared
+RUN pnpm -C packages/shared run build
+
+# Generate Prisma client into node_modules/.prisma (default behavior)
+RUN pnpm -C apps/api exec prisma generate
+
+# Build API -> apps/api/dist/index.js
 RUN pnpm -C apps/api run build
 
-# ---------- runtime-stage ----------
-# ---------- runtime-stage ----------
+# ---------- runtime stage ----------
 FROM node:20-alpine AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
 RUN corepack enable
 
-# Kopiere die gebauten Dateien und die package.json
-# Wir kopieren jetzt den gesamten dist-Ordner flach in den Workdir
-COPY --from=build /app/apps/api/dist ./dist
-COPY --from=build /app/apps/api/package.json ./package.json
-COPY --from=build /app/package.json ./root-package.json
-# Falls du Prisma nutzt:
-# COPY --from=build /app/apps/api/prisma ./prisma 
+# Copy only what we need to run
+COPY --from=build /app/apps/api/dist /app/apps/api/dist
+COPY --from=build /app/packages/shared/dist /app/packages/shared/dist
 
-# Installiere nur Production-Deps
-RUN pnpm install --prod --ignore-scripts
+# ✅ Copy node_modules that already contains generated Prisma client
+COPY --from=build /app/node_modules /app/node_modules
+COPY --from=build /app/apps/api/node_modules /app/apps/api/node_modules
+COPY --from=build /app/packages/shared/node_modules /app/packages/shared/node_modules
+
+# Also copy minimal manifests (optional, but nice for introspection)
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
+COPY apps/api/package.json apps/api/package.json
+COPY packages/shared/package.json packages/shared/package.json
 
 EXPOSE 3000
-# Starte die Datei dort, wo sie jetzt wirklich liegt:
-CMD ["node", "dist/index.js"]
+CMD ["node", "apps/api/dist/index.js"]

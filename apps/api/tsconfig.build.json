@@ -2,16 +2,15 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "noEmit": false,
+    "emitDeclarationOnly": false,
 
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
 
-    "allowImportingTsExtensions": false,
+    "rootDir": "src",
+    "outDir": "dist",
 
-    "outDir": "dist"
+    "allowImportingTsExtensions": false
   },
-  "include": [
-    "src",
-    "../../packages/shared/src"
-  ]
+  "include": ["src/**/*.ts"]
 }
