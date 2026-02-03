@@ -5,8 +5,8 @@ import pkgPg from 'pg';
 import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 
-
 import authRoutes from './auth.js';
+import workoutRoutes from './workouts.js'; // ✅ add
 
 const { Pool } = pkgPg;
 
@@ -24,6 +24,8 @@ app.use(cors());
 app.use(express.json());
 
 app.use('/api/auth', authRoutes);
+app.use('/api/workouts', workoutRoutes); // ✅ add
+
 app.get("/health", (_req, res) => res.status(200).json({ ok: true }));
 
 app.listen(3000, '0.0.0.0', () => {

@@ -24,7 +24,8 @@ services:
       pnpm dev
       "
     ports:
-      - "3000:3000"
+        - "3000:3000"
+        - "5555:5555"
     volumes:
       - .:/app
       - api_root_node_modules:/app/node_modules

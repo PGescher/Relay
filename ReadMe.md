@@ -69,6 +69,13 @@ docker compose logs -f api
 
 
 
+docker compose -f docker-compose.dev.yml up -d
+docker compose -f docker-compose.dev.yml exec api sh -lc "BROWSER=none pnpm exec prisma studio --hostname 0.0.0.0 --port 5555"
+
+cd apps/api
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/relay" pnpm exec prisma studio
+
+
 ## Update DB
 docker compose exec -w /Relay/apps/api api npx prisma db push
 
@@ -91,3 +98,87 @@ http://localhost:5555
 
 Open from NAS:
 ssh -L 5555:localhost:5555 user@your-nas
+
+
+
+1️⃣ Export DATABASE_URL (same as docker-compose)
+
+Use the same connection string as your db service:
+
+export DATABASE_URL="postgresql://postgres:password@localhost:5432/postgres"
+
+
+If Postgres is only exposed inside Docker, forward it:
+
+# docker-compose.prod.yml
+db:
+  ports:
+    - "5432:5432"
+
+2️⃣ Start Prisma Studio
+
+From apps/api:
+
+pnpm exec prisma studio
+
+
+You’ll see:
+
+Prisma Studio is running on http://localhost:5555
+
+
+Useful if DB is not exposed to localhost.
+
+1️⃣ Exec into API container
+docker exec -it relay-api-1 sh
+
+2️⃣ Run Studio and bind all interfaces
+pnpm exec prisma studio --hostname 0.0.0.0
+
+
+Studio now listens on port 5555 inside the container.
+
+3️⃣ Expose the port
+
+In docker-compose.prod.yml:
+
+api:
+  ports:
+    - "3000:3000"
+    - "5555:5555"
+
+
+Restart:
+
+docker compose -f docker-compose.prod.yml up -d
+
+
+Now open:
+Useful if DB is not exposed to localhost.
+
+1️⃣ Exec into API container
+docker exec -it relay-api-1 sh
+
+2️⃣ Run Studio and bind all interfaces
+pnpm exec prisma studio --hostname 0.0.0.0
+
+
+Studio now listens on port 5555 inside the container.
+
+3️⃣ Expose the port
+
+In docker-compose.prod.yml:
+
+api:
+  ports:
+    - "3000:3000"
+    - "5555:5555"
+
+
+Restart:
+
+docker compose -f docker-compose.prod.yml up -d
+
+
+Now open:
+http://NAS-IP:5555

@@ -25,9 +25,24 @@ model Workout {
   status    String   // "ACTIVE", "COMPLETED"
   startTime DateTime @default(now())
   endTime   DateTime?
-  
-  // JSON field to store sets/reps/gps-coords depending on the module
-  data      Json?    
+
+  data      Json?
+
+  events    WorkoutEvent[]   // ✅ add this line
 
   @@index([userId])
+}
+
+
+model WorkoutEvent {
+  id        String   @id @default(uuid())
+  workoutId String
+  workout   Workout  @relation(fields: [workoutId], references: [id], onDelete: Cascade)
+
+  at        DateTime
+  type      String
+  payload   Json?
+
+  @@index([workoutId])
+  @@index([workoutId, at])
 }

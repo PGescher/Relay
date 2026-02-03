@@ -1,10 +1,10 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 import { EXERCISES } from './constants';
 import { Plus, Check, ChevronDown, X, Timer, Trash2 } from 'lucide-react';
 import type { ExerciseLog, SetLog, WorkoutEvent, WorkoutSession } from '@relay/shared';
-import { saveWorkoutDraft, clearWorkoutDraft } from './workoutDrafts';
+import { saveWorkoutDraft, clearWorkoutDraft, loadLastWorkoutDraft } from './workoutDraft';
 
 const REST_STORAGE_KEY = 'relay:gym:restByExerciseId:v1';
 
@@ -20,9 +20,7 @@ const formatTime = (seconds: number) => {
   const hrs = Math.floor(seconds / 3600);
   const mins = Math.floor((seconds % 3600) / 60);
   const secs = seconds % 60;
-  return `${hrs > 0 ? hrs + ':' : ''}${mins.toString().padStart(2, '0')}:${secs
-    .toString()
-    .padStart(2, '0')}`;
+  return `${hrs > 0 ? hrs + ':' : ''}${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
 };
 
 type SwipeState = {
@@ -42,18 +40,6 @@ const ActiveWorkout: React.FC = () => {
   // Events (in-memory)
   const [events, setEvents] = useState<WorkoutEvent[]>([]);
 
-  const appendEvent = (type: WorkoutEvent['type'], payload?: WorkoutEvent['payload']) => {
-    if (!currentWorkout) return;
-    const ev: WorkoutEvent = {
-      id: uid(),
-      workoutId: currentWorkout.id,
-      at: Date.now(),
-      type,
-      payload,
-    };
-    setEvents((prev) => [ev, ...prev]);
-  };
-
   // Rest countdown state
   const [restRemaining, setRestRemaining] = useState<number>(0);
   const [restTotal, setRestTotal] = useState<number>(0);
@@ -70,6 +56,38 @@ const ActiveWorkout: React.FC = () => {
   const swipeRef = useRef<Record<string, SwipeState>>({});
 
   const navigate = useNavigate();
+
+  // ✅ Append event WITHOUT hooks inside
+  const appendEvent = useCallback(
+    (type: WorkoutEvent['type'], payload?: WorkoutEvent['payload']) => {
+      if (!currentWorkout) return;
+      const ev: WorkoutEvent = {
+        id: uid(),
+        workoutId: currentWorkout.id,
+        at: Date.now(),
+        type,
+        payload,
+      };
+      setEvents((prev) => [ev, ...prev]);
+    },
+    [currentWorkout]
+  );
+
+  // ✅ Restore draft once (and restore workout + events + rest map)
+  useEffect(() => {
+    if (currentWorkout) return;
+
+    const draft = loadLastWorkoutDraft();
+    if (!draft?.workout) return;
+    if (draft.workout.status !== 'active') return;
+
+    setCurrentWorkout(draft.workout);
+    setEvents(draft.events ?? []);
+    setRestByExerciseId(draft.restByExerciseId ?? {});
+    // NOTE: we do NOT navigate here; you’re already on /active.
+    // If you sometimes mount ActiveWorkout elsewhere, add:
+    // navigate('/activities/gym/active', { replace: true });
+  }, [currentWorkout, setCurrentWorkout]);
 
   // Load persisted per-exercise rest
   useEffect(() => {
@@ -101,9 +119,9 @@ const ActiveWorkout: React.FC = () => {
 
     const tick = () => setTimer(Math.floor((Date.now() - currentWorkout.startTime) / 1000));
     tick();
-    const interval = setInterval(tick, 1000);
+    const interval = window.setInterval(tick, 1000);
 
-    return () => clearInterval(interval);
+    return () => window.clearInterval(interval);
   }, [currentWorkout, navigate]);
 
   // Rest countdown interval
@@ -137,8 +155,7 @@ const ActiveWorkout: React.FC = () => {
       if (restIntervalRef.current) window.clearInterval(restIntervalRef.current);
       restIntervalRef.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [restRunning]);
+  }, [restRunning, appendEvent]);
 
   const startRest = (seconds: number) => {
     setRestTotal(seconds);
@@ -206,7 +223,6 @@ const ActiveWorkout: React.FC = () => {
     const newLogs = [...currentWorkout.logs];
     const current = newLogs[exerciseIndex].sets[setIndex];
 
-    // startedEditingAt if user changes weight/reps first time
     const now = Date.now();
     const startedEditingAt =
       (data.weight != null || data.reps != null) && !current.startedEditingAt ? now : current.startedEditingAt;
@@ -308,7 +324,6 @@ const ActiveWorkout: React.FC = () => {
     const set = log.sets[setIndex];
     const next = !set.isCompleted;
 
-    // ✅ Ghost fill on check: if nothing entered, use ghost values
     const ghost = getGhost(log.exerciseId, setIndex);
 
     let nextWeight = set.weight;
@@ -319,7 +334,6 @@ const ActiveWorkout: React.FC = () => {
       if ((nextReps === 0 || Number.isNaN(nextReps)) && ghost.reps != null) nextReps = ghost.reps;
     }
 
-    // apply changes + completion
     const patch: Partial<SetLog> = {
       weight: nextWeight,
       reps: nextReps,
@@ -328,7 +342,6 @@ const ActiveWorkout: React.FC = () => {
       restPlannedSec: getRestForExercise(log.exerciseId),
     };
 
-    // update state directly (batch)
     const newLogs = [...currentWorkout.logs];
     newLogs[exerciseIndex].sets[setIndex] = { ...newLogs[exerciseIndex].sets[setIndex], ...patch };
     setCurrentWorkout({ ...currentWorkout, logs: newLogs });
@@ -340,14 +353,14 @@ const ActiveWorkout: React.FC = () => {
       reps: nextReps,
     });
 
-    // Rest behavior
     if (next) startRest(getRestForExercise(log.exerciseId));
     else stopRest();
   };
 
-  const finishWorkout = () => {
+  const finishWorkout = async () => {
     if (!currentWorkout) return;
 
+    stopRest();
     appendEvent('workout_finished', {});
 
     const finished: WorkoutSession = {
@@ -358,18 +371,34 @@ const ActiveWorkout: React.FC = () => {
       totalVolume: computeWorkoutVolume(currentWorkout),
     };
 
+    try {
+      const token = localStorage.getItem('relay-token');
+
+      const res = await fetch('/api/workouts/gym/complete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ workout: finished, events, restByExerciseId }),
+      });
+
+      if (!res.ok) throw new Error(`sync failed: ${res.status}`);
+
+      clearWorkoutDraft(finished.id);
+    } catch (e) {
+      console.warn('Workout sync failed, keeping draft.', e);
+    }
+
     setWorkoutHistory([finished, ...workoutHistory]);
     setCurrentWorkout(null);
-
-    // clear draft for this workout
-    clearWorkoutDraft(finished.id);
-
     navigate('/activities/gym/history', { replace: true });
   };
 
   const cancelWorkout = () => {
     if (!currentWorkout) return;
     if (confirm('Cancel workout? Data will be lost.')) {
+      stopRest();
       appendEvent('workout_cancelled', {});
       clearWorkoutDraft(currentWorkout.id);
       setCurrentWorkout(null);
@@ -377,11 +406,10 @@ const ActiveWorkout: React.FC = () => {
     }
   };
 
-  // --- Draft persistence during workout (workout + events + rest config) ---
+  // ✅ Draft persistence during workout (debounced)
   useEffect(() => {
     if (!currentWorkout) return;
 
-    // light debounce to avoid writing on every keystroke
     const t = window.setTimeout(() => {
       saveWorkoutDraft({
         workout: currentWorkout,
@@ -398,7 +426,7 @@ const ActiveWorkout: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[var(--bg)] text-[var(--text)] animate-in slide-in-from-right duration-300">
-      {/* SUB-HEADER (RED) */}
+      {/* SUB-HEADER (PRIMARY) */}
       <div className="fixed top-16 left-0 right-0 z-[90] bg-[var(--primary)] text-white px-6 py-3 flex items-center justify-between shadow-lg">
         <button
           type="button"
@@ -443,7 +471,6 @@ const ActiveWorkout: React.FC = () => {
                 key={`${log.exerciseId}-${exIndex}`}
                 className="bg-[var(--glass)] backdrop-blur-xl border border-[var(--border)] rounded-3xl p-5 shadow-[0_12px_32px_rgba(0,0,0,0.10)]"
               >
-                {/* Header */}
                 <div className="flex justify-between items-start mb-4 gap-4">
                   <div className="min-w-0">
                     <h3 className="font-black italic text-lg truncate">{log.exerciseName}</h3>
@@ -458,7 +485,6 @@ const ActiveWorkout: React.FC = () => {
                         Rest {formatMMSS(restForThis)}
                       </button>
 
-                      {/* Optional delete exercise */}
                       <button
                         type="button"
                         onClick={() => deleteExercise(exIndex)}
@@ -471,18 +497,12 @@ const ActiveWorkout: React.FC = () => {
                     </div>
                   </div>
 
-                  <button
-                    type="button"
-                    className="text-[var(--text-muted)] hover:text-[var(--text)] transition-colors mt-1"
-                    aria-label="Collapse"
-                  >
+                  <button type="button" className="text-[var(--text-muted)] hover:text-[var(--text)] transition-colors mt-1">
                     <ChevronDown size={20} />
                   </button>
                 </div>
 
-                {/* Table */}
                 <div className="space-y-2">
-                  {/* 6-col header: Set | Prev (2) | Weight | Reps | Done */}
                   <div className="grid grid-cols-6 gap-2 px-2 text-[10px] font-black uppercase text-[var(--text-muted)]">
                     <span>Set</span>
                     <span className="col-span-2">Prev</span>
@@ -495,18 +515,11 @@ const ActiveWorkout: React.FC = () => {
                     const completed = !!set.isCompleted;
                     const ghostLabel = formatGhost(log.exerciseId, setIndex);
                     const g = getGhost(log.exerciseId, setIndex);
-
-                    // Touch handlers for swipe-left delete
                     const key = set.id;
 
                     const onTouchStart: React.TouchEventHandler<HTMLDivElement> = (e) => {
                       const t = e.touches[0];
-                      swipeRef.current[key] = {
-                        startX: t.clientX,
-                        startY: t.clientY,
-                        swiping: false,
-                        triggered: false,
-                      };
+                      swipeRef.current[key] = { startX: t.clientX, startY: t.clientY, swiping: false, triggered: false };
                     };
 
                     const onTouchMove: React.TouchEventHandler<HTMLDivElement> = (e) => {
@@ -517,12 +530,10 @@ const ActiveWorkout: React.FC = () => {
                       const dx = t.clientX - st.startX;
                       const dy = t.clientY - st.startY;
 
-                      // decide if horizontal swipe
                       if (!st.swiping) {
                         if (Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy)) st.swiping = true;
                       }
 
-                      // swipe left threshold
                       if (st.swiping && !st.triggered && dx < -SWIPE_DELETE_PX) {
                         st.triggered = true;
                         deleteSet(exIndex, setIndex);
@@ -550,7 +561,6 @@ const ActiveWorkout: React.FC = () => {
                           {ghostLabel || '—'}
                         </span>
 
-                        {/* Weight */}
                         <input
                           inputMode="decimal"
                           pattern="[0-9]*[.,]?[0-9]*"
@@ -565,7 +575,6 @@ const ActiveWorkout: React.FC = () => {
                           className="rounded-lg p-2 text-xs font-bold text-center w-full bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-soft)]"
                         />
 
-                        {/* Reps */}
                         <input
                           inputMode="numeric"
                           pattern="[0-9]*"
@@ -579,7 +588,6 @@ const ActiveWorkout: React.FC = () => {
                           className="rounded-lg p-2 text-xs font-bold text-center w-full bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-soft)]"
                         />
 
-                        {/* INLINE ✅ */}
                         <button
                           type="button"
                           onClick={() => toggleComplete(exIndex, setIndex)}
@@ -598,7 +606,6 @@ const ActiveWorkout: React.FC = () => {
                   })}
                 </div>
 
-                {/* Add set */}
                 <button
                   type="button"
                   onClick={() => addSet(exIndex)}
@@ -610,7 +617,6 @@ const ActiveWorkout: React.FC = () => {
             );
           })}
 
-          {/* Add exercise */}
           <button
             type="button"
             onClick={() => setShowExercisePicker(true)}
@@ -622,7 +628,6 @@ const ActiveWorkout: React.FC = () => {
         </div>
       </div>
 
-      {/* Rest countdown bar */}
       {restRunning && (
         <div className="fixed bottom-[84px] left-4 right-4 z-[95] max-w-xl mx-auto">
           <button
@@ -632,18 +637,12 @@ const ActiveWorkout: React.FC = () => {
             aria-label="Stop rest timer"
           >
             <div className="px-4 py-3 flex items-center justify-between">
-              <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">
-                Resting
-              </span>
-              <span className="text-lg font-black italic text-[var(--primary)]">
-                {formatMMSS(restRemaining)}
-              </span>
+              <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">Resting</span>
+              <span className="text-lg font-black italic text-[var(--primary)]">{formatMMSS(restRemaining)}</span>
             </div>
             <div
               className="h-2 bg-[var(--primary)]"
-              style={{
-                width: `${restTotal > 0 ? (restRemaining / restTotal) * 100 : 0}%`,
-              }}
+              style={{ width: `${restTotal > 0 ? (restRemaining / restTotal) * 100 : 0}%` }}
             />
           </button>
         </div>
@@ -675,9 +674,7 @@ const ActiveWorkout: React.FC = () => {
                 >
                   <div className="text-left">
                     <p className="font-black">{ex.name}</p>
-                    <p className="text-[10px] font-black uppercase text-[var(--text-muted)] tracking-widest">
-                      {ex.muscleGroup}
-                    </p>
+                    <p className="text-[10px] font-black uppercase text-[var(--text-muted)] tracking-widest">{ex.muscleGroup}</p>
                   </div>
                   <Plus size={20} className="text-[var(--primary)]" />
                 </button>
@@ -687,7 +684,7 @@ const ActiveWorkout: React.FC = () => {
         </div>
       )}
 
-      {/* Per-exercise rest config modal */}
+      {/* Rest config modal */}
       {restConfigForExerciseId && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[110] flex flex-col justify-end p-4">
           <div className="bg-[var(--bg)] text-[var(--text)] rounded-[40px] p-6 w-full max-w-md mx-auto border border-[var(--border)] animate-in slide-in-from-bottom duration-300">
@@ -738,7 +735,7 @@ const ActiveWorkout: React.FC = () => {
   );
 };
 
-// Volume helper (simple)
+// Volume helper
 function computeWorkoutVolume(w: WorkoutSession): number {
   let total = 0;
   for (const log of w.logs) {
