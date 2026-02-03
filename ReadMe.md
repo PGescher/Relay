@@ -71,3 +71,7 @@ docker compose logs -f api
 
 ## Update DB
 docker compose exec -w /Relay/apps/api api npx prisma db push
+
+
+
+docker compose -f docker-compose.dev.yml exec api sh -lc   "cd /app/apps/api && pnpm exec prisma migrate deploy"

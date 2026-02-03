@@ -36,10 +36,19 @@ COPY --from=build /app/node_modules /app/node_modules
 COPY --from=build /app/apps/api/node_modules /app/apps/api/node_modules
 COPY --from=build /app/packages/shared/node_modules /app/packages/shared/node_modules
 
+# add prisma schema + migrations to runtime
+COPY --from=build /app/apps/api/prisma /app/apps/api/prisma
+
+# (optional, aber praktisch)
+COPY --from=build /app/apps/api/package.json /app/apps/api/package.json
+
+
 # Also copy minimal manifests (optional, but nice for introspection)
 COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
 COPY apps/api/package.json apps/api/package.json
 COPY packages/shared/package.json packages/shared/package.json
+
+
 
 EXPOSE 3000
 CMD ["node", "apps/api/dist/index.js"]
