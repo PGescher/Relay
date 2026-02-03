@@ -38,6 +38,7 @@ COPY --from=build /app/packages/shared/node_modules /app/packages/shared/node_mo
 
 # add prisma schema + migrations to runtime
 COPY --from=build /app/apps/api/prisma /app/apps/api/prisma
+COPY --from=build /app/apps/api/prisma.config.ts /app/apps/api/prisma.config.ts
 
 # (optional, aber praktisch)
 COPY --from=build /app/apps/api/package.json /app/apps/api/package.json
