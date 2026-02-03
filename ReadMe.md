@@ -81,3 +81,13 @@ docker compose -f docker-compose.prod.yml pull
 
 
 docker compose -f docker-compose.prod.yml up -d --force-recreate
+
+
+visu database: docker exec -it relay-api-1 sh -lc \
+  'cd /app/apps/api && pnpm exec prisma studio'
+
+Default starts on:
+http://localhost:5555
+
+Open from NAS:
+ssh -L 5555:localhost:5555 user@your-nas

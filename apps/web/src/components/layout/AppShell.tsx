@@ -1,10 +1,9 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Home, MessageSquare, Zap, User, LogOut, Sparkles, LucideIcon } from 'lucide-react';
 import ThemeToggle from '../ui/ThemeToggle';
-import { useApp } from '../../context/AppContext'; //Activity Status
+import { useApp } from '../../context/AppContext';
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -13,28 +12,24 @@ interface AppShellProps {
 
 interface NavLinkProps {
   to: string;
-  icon: LucideIcon; // Pass the component reference, not the <Element />
+  icon: LucideIcon;
   active: boolean;
   label: string;
 }
 
-// Define the order of our main tabs for index tracking
 const TABS = ['/feed', '/home', '/activities'];
 
 const AppShell: React.FC<AppShellProps> = ({ children, onLogout }) => {
-  const { currentWorkout } = useApp(); //get Current Workout
+  const { currentWorkout } = useApp();
   const location = useLocation();
   const navigate = useNavigate();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [elapsed, setElapsed] = useState(0);
 
-  // Root paths have NO back button. Everything else gets one.
-  const isRootPath = ['/feed', '/home', '/activities'].includes(location.pathname);
+  const isRootPath = ['/home'].includes(location.pathname);
 
-  // Show Pill if workout exists AND we are NOT on the active page
   const showLivePill = currentWorkout && location.pathname !== '/activities/gym/active';
 
-  //Simple timer logic for the Nav Bar
   useEffect(() => {
     let interval: any;
     if (currentWorkout) {
@@ -51,36 +46,37 @@ const AppShell: React.FC<AppShellProps> = ({ children, onLogout }) => {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // Swipe Logic
   const currentIndex = TABS.indexOf(location.pathname);
 
   const handleSwipe = (_: any, info: any) => {
-    const threshold = 50; // pixels
+    const threshold = 50;
     if (info.offset.x < -threshold && currentIndex < TABS.length - 1) {
-      // Swipe Left -> Go Right (Activities)
       navigate(TABS[currentIndex + 1]);
     } else if (info.offset.x > threshold && currentIndex > 0) {
-      // Swipe Right -> Go Left (Feed)
       navigate(TABS[currentIndex - 1]);
     }
   };
 
-  // Determine if we should show the pill: 
-  // Show it if a workout is active AND we aren't currently looking at the gym screen
-  const isGymPage = location.pathname.startsWith('/activities/gym');
-  //const showLivePill = currentWorkout && !isGymPage;
+  const goBack = () => {
+    // If user opened deep link directly, history can be empty-ish
+    if (window.history.length > 1) {
+      navigate(-1);
+    } else {
+      navigate('/home', { replace: true });
+    }
+  };
 
   return (
     <div className="flex flex-col min-h-screen bg-[var(--bg)] text-[var(--text)] transition-colors overflow-x-hidden">
-      {/* MAIN TOP BAR - ALWAYS FIXED AT THE TOP */}
+      {/* MAIN TOP BAR */}
       <header className="fixed top-0 left-0 right-0 z-[100] bg-[var(--bg)]/80 backdrop-blur-md border-b border-[var(--border)] px-6 h-16 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          {/* BACK BUTTON LOGIC */}
-          {/* DYNAMIC BACK BUTTON */}
           {!isRootPath ? (
-            <button 
-              onClick={() => navigate(-1)} // <--- This now works perfectly everywhere
+            <button
+              type="button"
+              onClick={goBack}
               className="p-2 -ml-2 hover:bg-[var(--bg-card)] rounded-xl transition-colors"
+              aria-label="Back"
             >
               <ArrowLeft size={20} />
             </button>
@@ -89,14 +85,13 @@ const AppShell: React.FC<AppShellProps> = ({ children, onLogout }) => {
               <Sparkles className="text-white w-5 h-5" />
             </div>
           )}
+
           <span className="text-lg font-black tracking-tighter uppercase">Relay</span>
         </div>
 
-        {/* LIVE ACTIVITY PILL (Only shows when navigating away from workout) */}
-         {/* PILL - Takes you to the URL, not a state toggle */}
         {showLivePill && (
-          <Link 
-            to="/activities/gym/active" 
+          <Link
+            to="/activities/gym/active"
             className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2 bg-blue-600 px-3 py-1 rounded-full animate-pulse shadow-lg shadow-blue-500/20"
           >
             <div className="w-1.5 h-1.5 bg-white rounded-full" />
@@ -108,17 +103,19 @@ const AppShell: React.FC<AppShellProps> = ({ children, onLogout }) => {
 
         <div className="flex items-center gap-3">
           <ThemeToggle />
-          <button 
+          <button
+            type="button"
             onClick={() => setShowProfileMenu(!showProfileMenu)}
             className="p-2 hover:bg-[var(--bg-card)] rounded-xl transition-colors"
+            aria-label="Profile"
           >
             <User size={20} />
           </button>
         </div>
       </header>
 
-      {/* Main Content: pt-16 accounts for the Main Header height */}
-      <motion.main 
+      {/* Main Content */}
+      <motion.main
         key={location.pathname}
         drag="x"
         dragConstraints={{ left: 0, right: 0 }}
@@ -128,61 +125,61 @@ const AppShell: React.FC<AppShellProps> = ({ children, onLogout }) => {
         {children}
       </motion.main>
 
-      {/* Bottom Nav: Feed | Home (Middle) | Activities */}
+      {/* Bottom Nav */}
       <nav className="fixed bottom-0 left-0 right-0 bg-[var(--bg)]/80 backdrop-blur-md border-t border-[var(--border)] h-20 pb-4 z-50 grid grid-cols-3 items-center">
-        
-        {/* Left Side */}
         <div className="flex justify-center">
-          <NavLink 
-            to="/feed" 
-            icon={MessageSquare} 
-            active={location.pathname === '/feed'} 
+          <NavLink
+            to="/feed"
+            icon={MessageSquare}
+            active={location.pathname === '/feed'}
             label="Feed"
           />
         </div>
-        
-        {/* Middle Home Button */}
+
         <div className="flex justify-center">
           <Link to="/home" className="relative -top-4">
-            <div className={`p-4 rounded-[24px] shadow-lg transition-all ${
-              location.pathname === '/home' 
-              ? 'bg-[var(--primary)] text-white scale-110' 
-              : 'bg-[var(--bg-card)] text-[var(--text-muted)]'
-            }`}>
+            <div
+              className={`p-4 rounded-[24px] shadow-lg transition-all ${
+                location.pathname === '/home'
+                  ? 'bg-[var(--primary)] text-white scale-110'
+                  : 'bg-[var(--bg-card)] text-[var(--text-muted)]'
+              }`}
+            >
               <Home size={28} strokeWidth={3} />
             </div>
           </Link>
         </div>
 
-        {/* Right Side */}
         <div className="flex justify-center">
-          <NavLink 
-            to="/activities" 
-            icon={Zap} 
-            active={location.pathname.startsWith('/activities')} 
+          <NavLink
+            to="/activities"
+            icon={Zap}
+            active={location.pathname.startsWith('/activities')}
             label="Activities Overview"
           />
         </div>
       </nav>
 
-      {/* Logout Overlay (Simplified) */}
+      {/* Logout Overlay */}
       {showProfileMenu && (
         <div className="fixed inset-0 z-[60] flex items-end justify-center p-6 bg-black/20 backdrop-blur-sm">
-           <div className="w-full max-w-sm bg-[var(--bg)] rounded-[32px] p-8 shadow-2xl animate-in slide-in-from-bottom-full">
-              <h3 className="text-xl font-black mb-6 text-center">Account</h3>
-              <button 
-                onClick={onLogout}
-                className="w-full py-4 bg-red-500 text-white rounded-2xl font-black flex items-center justify-center gap-3"
-              >
-                <LogOut size={20} /> LOG OUT
-              </button>
-              <button 
-                onClick={() => setShowProfileMenu(false)}
-                className="w-full mt-4 py-4 font-bold text-[var(--text-muted)]"
-              >
-                Cancel
-              </button>
-           </div>
+          <div className="w-full max-w-sm bg-[var(--bg)] rounded-[32px] p-8 shadow-2xl animate-in slide-in-from-bottom-full">
+            <h3 className="text-xl font-black mb-6 text-center">Account</h3>
+            <button
+              type="button"
+              onClick={onLogout}
+              className="w-full py-4 bg-red-500 text-white rounded-2xl font-black flex items-center justify-center gap-3"
+            >
+              <LogOut size={20} /> LOG OUT
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowProfileMenu(false)}
+              className="w-full mt-4 py-4 font-bold text-[var(--text-muted)]"
+            >
+              Cancel
+            </button>
+          </div>
         </div>
       )}
     </div>
@@ -190,18 +187,13 @@ const AppShell: React.FC<AppShellProps> = ({ children, onLogout }) => {
 };
 
 const NavLink: React.FC<NavLinkProps> = ({ to, icon: Icon, active, label }) => (
-  <Link 
-    to={to} 
+  <Link
+    to={to}
     className={`flex flex-col items-center gap-1 transition-all whitespace-nowrap ${
       active ? 'text-[var(--primary)]' : 'text-[var(--text-muted)]'
     }`}
   >
-    {/* Render it as a component directly */}
-    <Icon 
-      size={24} 
-      strokeWidth={active ? 3 : 2} 
-      className="transition-all"
-    />
+    <Icon size={24} strokeWidth={active ? 3 : 2} className="transition-all" />
     <span className="text-[10px] font-black uppercase tracking-tighter">{label}</span>
   </Link>
 );

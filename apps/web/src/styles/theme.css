@@ -1,0 +1,83 @@
+/* src/styles/theme.css */
+
+/* ---------------- LIGHT (default) ---------------- */
+:root {
+  /* Base */
+  --bg: #ffffff;                 /* keep it crisp */
+  --text: #111827;               /* your old text */
+  --text-muted: #6b7280;         /* your old muted */
+
+  /* Cards / surfaces */
+  --bg-card: #f9fafb;            /* your old card */
+  --bg-card-strong: #ffffff;     /* for hero cards etc. */
+
+  /* “Glass” (in light mode = almost solid) */
+  --glass: rgba(255, 255, 255, 0.92);
+  --glass-strong: rgba(255, 255, 255, 0.98);
+
+  /* Borders */
+  --border: rgba(17, 24, 39, 0.10);  /* softer than #e5e7eb, reads nicer */
+
+  /* Brand */
+  --primary: #68001a;            /* your current Relay accent */
+  --primary-hover: #4e0013;      /* darker wine hover */
+  --primary-soft: rgba(104, 0, 26, 0.12);
+
+  /* Subtle shadow/glow */
+  --glow: rgba(0, 0, 0, 0.06);
+
+  /* Auth/Landing atmospheric base */
+  --hero-bg: #ffffff;
+  --hero-text: #111827;
+
+  /* Hero glows (light) */
+  --glow-1: rgba(104, 0, 26, 0.10);
+  --glow-2: rgba(104, 0, 26, 0.06);
+
+  /* CTA */
+  --cta: #68001a;
+  --cta-hover: #4e0013;
+  --cta-shadow: rgba(104, 0, 26, 0.25);
+
+  /* gym-tracker */
+  --gym: #2563eb;                 /* blue-600 in light */
+  --gym-hover: #1d4ed8;           /* blue-700 */
+  --gym-soft: rgba(37, 99, 235, 0.12);
+}
+
+
+/* ---------------- DARK ---------------- */
+html.dark {
+  --bg: #0a0000;
+  --text: rgba(255, 255, 255, 0.95);
+
+  --bg-card: rgba(255, 255, 255, 0.06);
+  --bg-card-strong: rgba(255, 255, 255, 0.10);
+
+  --glass: rgba(255, 255, 255, 0.06);
+  --glass-strong: rgba(255, 255, 255, 0.09);
+
+  --border: rgba(255, 255, 255, 0.10);
+
+  --text-muted: rgba(255, 255, 255, 0.45);
+
+  --primary: #68001a;
+  --primary-soft: rgba(104, 0, 26, 0.24);
+
+  --glow: rgba(255, 255, 255, 0.06);
+
+  --hero-bg: #0a0000;
+  --hero-text: rgba(255, 255, 255, 0.95);
+
+  --glow-1: rgba(128, 0, 32, 0.35);
+  --glow-2: rgba(48, 0, 10, 0.22);
+
+  --cta: #800020;
+  --cta-hover: #a8002d;
+  --cta-shadow: rgba(128, 0, 32, 0.45);
+
+  /* gym-tracker */
+  --gym: #60a5fa;                 /* blue-400 in dark */
+  --gym-hover: #93c5fd;           /* blue-300 */
+  --gym-soft: rgba(96, 165, 250, 0.18);
+}
