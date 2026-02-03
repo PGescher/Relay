@@ -81,6 +81,12 @@ docker compose exec -w /Relay/apps/api api npx prisma db push
 
 
 
+docker compose -f docker-compose.dev.yml exec api sh -lc "pnpm exec prisma migrate dev --name add_workout_templates --schema prisma/schema.prisma"
+docker compose -f docker-compose.dev.yml exec api sh -lc "pnpm exec prisma generate --schema prisma/schema.prisma"
+
+
+
+
 docker compose -f docker-compose.dev.yml exec api sh -lc   "cd /app/apps/api && pnpm exec prisma migrate deploy"
 
 
