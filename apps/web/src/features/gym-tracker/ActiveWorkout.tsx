@@ -250,6 +250,66 @@ const ActiveWorkout: React.FC = () => {
     });
   };
 
+  const getLastCompletedSetsForExercise = (exerciseId: string): Array<{ reps: number; weight: number }> | null => {
+    if (!workoutHistory?.length) return null;
+
+    const ts = (w: any) =>
+      (typeof w?.endTime === 'number' && w.endTime) ||
+      (typeof w?.updatedAt === 'number' && w.updatedAt) ||
+      (typeof w?.startTime === 'number' && w.startTime) ||
+      0;
+
+    const sorted = [...workoutHistory].sort((a, b) => ts(b) - ts(a));
+
+    for (const w of sorted) {
+      const status = String((w as any)?.status ?? '').toLowerCase();
+      const isFinished = status === 'finished' || status === 'completed' || Boolean((w as any)?.endTime);
+      if (!isFinished) continue;
+
+      const logs = (w as any)?.logs;
+      if (!Array.isArray(logs)) continue;
+
+      const log = logs.find((l: any) => l?.exerciseId === exerciseId);
+      if (!log) continue;
+
+      const sets = Array.isArray(log?.sets) ? log.sets : [];
+      if (!sets.length) continue;
+
+      const completed = sets.filter((s: any) => s?.isCompleted);
+      const source = completed.length ? completed : sets;
+
+      // Map sets; keep same count as last time
+      const mapped = source.map((s: any) => ({
+        reps: typeof s?.reps === 'number' ? s.reps : 0,
+        weight: typeof s?.weight === 'number' ? s.weight : 0,
+      }));
+
+      // Only treat it as "done before" if there is at least some signal
+      const hasSignal =
+        completed.length > 0 ||
+        mapped.some((s) => (s.reps ?? 0) !== 0 || (s.weight ?? 0) !== 0);
+
+      if (hasSignal) return mapped;
+    }
+
+    return null;
+  };
+
+  const buildPrefilledSetLogs = (exerciseId: string, plannedRestSec: number): SetLog[] => {
+    const last = getLastCompletedSetsForExercise(exerciseId);
+
+    const base = last?.length ? last : [{ reps: 0, weight: 0 }];
+
+    return base.map((s) => ({
+      id: uid(),
+      reps: s.reps ?? 0,
+      weight: s.weight ?? 0,
+      isCompleted: false,
+      restPlannedSec: plannedRestSec,
+    }));
+  };
+
+
   const addExercise = (exerciseId: string) => {
     if (!currentWorkout) return;
     const exercise = EXERCISES.find((e) => e.id === exerciseId);
@@ -263,15 +323,7 @@ const ActiveWorkout: React.FC = () => {
       exerciseId: exercise.id,
       exerciseName: exercise.name,
       restSecDefault: planned,
-      sets: [
-        {
-          id: uid(),
-          reps: 0,
-          weight: 0,
-          isCompleted: false,
-          restPlannedSec: planned,
-        },
-      ],
+      sets: buildPrefilledSetLogs(exercise.id, planned),
     };
 
     setCurrentWorkout({ ...currentWorkout, logs: [...currentWorkout.logs, newLog] });

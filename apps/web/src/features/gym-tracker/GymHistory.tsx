@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { Calendar, ChevronRight, Clock, Award } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
+import SyncButton from '../../components/ui/SyncButton';
+
 const GymHistory: React.FC = () => {
   const { workoutHistory } = useApp();
 
@@ -21,6 +23,7 @@ const GymHistory: React.FC = () => {
         <h2 className="text-2xl font-[900] italic text-[var(--text)]">
           HISTORY<span className="text-[var(--primary)]">.</span>
         </h2>
+        <SyncButton module="GYM" onDone={() => window.location.reload()} />
         <div className="bg-[var(--bg-card)] border border-[var(--border)] px-4 py-2 rounded-full text-xs font-[900] uppercase tracking-widest text-[var(--text-muted)]">
           {workoutHistory.length} Sessions
         </div>

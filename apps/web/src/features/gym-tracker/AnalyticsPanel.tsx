@@ -12,6 +12,8 @@ import {
   CartesianGrid,
 } from 'recharts';
 
+import SyncButton from '../../components/ui/SyncButton';
+
 type Metric = 'volume' | 'durationMin' | 'rpe';
 type RangeKey = '4w' | '12w' | '6m' | '1y' | 'all';
 
@@ -227,7 +229,7 @@ const AnalyticsPanel: React.FC = () => {
         <h2 className="text-2xl font-[900] italic text-[var(--text)]">
           ANALYTICS<span className="text-[var(--primary)]">.</span>
         </h2>
-
+        
         {/* Source toggle */}
         <div className="flex items-center gap-2">
           <button
@@ -245,6 +247,7 @@ const AnalyticsPanel: React.FC = () => {
             API
           </button>
         </div>
+        <SyncButton module="GYM" onDone={() => window.location.reload()} />
       </div>
 
       {/* Controls */}

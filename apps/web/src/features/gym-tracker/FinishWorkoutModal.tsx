@@ -178,14 +178,20 @@ export function FinishWorkoutModal(props: {
                 </button>
               </div>
             ) : (
-              <label className="mt-4 inline-flex items-center gap-2 text-[10px] font-[900] uppercase tracking-widest text-[var(--text)]">
-                <input
-                  type="checkbox"
-                  checked={saveAsTemplate}
-                  onChange={(e) => setSaveAsTemplate(e.target.checked)}
-                />
-                Save as template
-              </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSaveAsTemplate(true);
+                  }}
+                  className={[
+                    "rounded-3xl p-4 border font-[900] uppercase tracking-widest text-[10px] transition-colors flex items-center justify-center gap-2",
+                    saveAsTemplate
+                      ? "bg-[var(--primary-soft)] border-[var(--primary)] text-[var(--primary)]"
+                      : "bg-[var(--bg-card)] border-[var(--border)] text-[var(--text)] hover:bg-[var(--glass-strong)]",
+                  ].join(' ')}
+                >
+                  Save as new template
+              </button>
             )}
 
             {saveAsTemplate && (

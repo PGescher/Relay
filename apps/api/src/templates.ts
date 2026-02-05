@@ -20,10 +20,52 @@ const TemplateSchema = z.object({
         exerciseName: z.string(),
         targetSets: z.number().int().min(1).max(20),
         restSec: z.number().int().min(0).max(600),
+        sets: z
+          .array(
+            z.object({
+              reps: z.number().optional(),
+              weight: z.number().optional(),
+            })
+          )
+          .optional(),
       })
     ),
   }),
 });
+
+router.get('/gym/:id', requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const row = await prisma.workoutTemplate.findUnique({ where: { id: req.params.id } });
+    if (!row || row.userId !== req.userId) return res.status(404).json({ error: 'Not found' });
+
+    return res.json({
+      dataVersion: 1,
+      id: row.id,
+      module: 'GYM',
+      name: row.name,
+      createdAt: row.createdAt.getTime(),
+      updatedAt: row.updatedAt.getTime(),
+      data: row.data as any,
+    });
+  } catch (e) {
+    console.error(e);
+    return res.status(500).json({ error: 'Failed to get template' });
+  }
+});
+
+router.delete('/gym/:id', requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const row = await prisma.workoutTemplate.findUnique({ where: { id: req.params.id } });
+    if (!row || row.userId !== req.userId) return res.status(404).json({ error: 'Not found' });
+
+    await prisma.workoutTemplate.delete({ where: { id: req.params.id } });
+    return res.json({ ok: true });
+  } catch (e) {
+    console.error(e);
+    return res.status(500).json({ error: 'Failed to delete template' });
+  }
+});
+
 
 router.get('/gym', requireAuth, async (req: AuthedRequest, res) => {
   try {

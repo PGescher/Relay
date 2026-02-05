@@ -1,25 +1,33 @@
-import React, { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, Trash2, ChevronUp, ChevronDown, Save } from 'lucide-react';
-import type { WorkoutTemplate, Exercise } from '@relay/shared';
+import React, { useEffect, useMemo, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { ArrowLeft, Plus, Trash2, ChevronUp, ChevronDown, Save, X } from 'lucide-react';
+import type { WorkoutTemplate, Exercise, WorkoutSession, SetLog } from '@relay/shared';
 import { ExerciseLibraryModal } from './ExerciseLibraryModal';
 import { EXERCISES } from './constants';
+import { useApp } from '../../context/AppContext';
 
 const uid = () => (crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`);
 
+type SimpleSet = { reps?: number; weight?: number };
+
 type TemplateRow = {
-  rowId: string; // ✅ allows duplicates of same exerciseId
+  rowId: string; // allow duplicates
   exerciseId: string;
   exerciseName: string;
-  targetSets: number;
   restSec: number;
-  sets: Array<{ reps?: number; weight?: number }>;
+  sets: SimpleSet[];
 };
 
 const clampInt = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n));
+const DEFAULT_REST_SEC = 120;
 
 const TemplateBuilderPage: React.FC = () => {
   const navigate = useNavigate();
+  const { id } = useParams();
+  const isEdit = Boolean(id);
+
+  const { workoutHistory } = useApp(); // ✅ same source as ActiveWorkout
+  const token = useMemo(() => localStorage.getItem('relay-token'), []);
 
   const exercises: Exercise[] = EXERCISES;
   const exerciseById = useMemo(() => new Map(exercises.map((e) => [e.id, e])), [exercises]);
@@ -29,37 +37,113 @@ const TemplateBuilderPage: React.FC = () => {
   const [showLibrary, setShowLibrary] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const token = useMemo(() => localStorage.getItem('relay-token'), []);
-
   const canSave = name.trim().length > 0 && items.length > 0 && !saving;
 
+  // --- Prefill from workoutHistory (same logic as ActiveWorkout) ---
+  const getLastCompletedSetsForExercise = (exerciseId: string): Array<{ reps: number; weight: number }> | null => {
+    const hist = workoutHistory as unknown as WorkoutSession[] | undefined;
+    if (!hist?.length) return null;
+
+    const ts = (w: any) =>
+      (typeof w?.endTime === 'number' && w.endTime) ||
+      (typeof w?.updatedAt === 'number' && w.updatedAt) ||
+      (typeof w?.startTime === 'number' && w.startTime) ||
+      0;
+
+    const sorted = [...hist].sort((a, b) => ts(b) - ts(a));
+
+    for (const w of sorted) {
+      const status = String((w as any)?.status ?? '').toLowerCase();
+      const isFinished = status === 'finished' || status === 'completed' || Boolean((w as any)?.endTime);
+      if (!isFinished) continue;
+
+      const logs = (w as any)?.logs;
+      if (!Array.isArray(logs)) continue;
+
+      const log = logs.find((l: any) => l?.exerciseId === exerciseId);
+      if (!log) continue;
+
+      const sets = Array.isArray(log?.sets) ? (log.sets as SetLog[]) : [];
+      if (!sets.length) continue;
+
+      const completed = sets.filter((s) => s?.isCompleted);
+      const source = completed.length ? completed : sets;
+
+      const mapped = source.map((s) => ({
+        reps: typeof s?.reps === 'number' ? s.reps : 0,
+        weight: typeof s?.weight === 'number' ? s.weight : 0,
+      }));
+
+      const hasSignal =
+        completed.length > 0 || mapped.some((s) => (s.reps ?? 0) !== 0 || (s.weight ?? 0) !== 0);
+
+      if (hasSignal) return mapped;
+    }
+
+    return null;
+  };
+
+  const defaultSetsForExercise = (exerciseId: string): SimpleSet[] => {
+    const last = getLastCompletedSetsForExercise(exerciseId);
+    return last?.length ? last : [{ reps: 0, weight: 0 }]; // ✅ default only if never done
+  };
+
+  // --- Edit mode load ---
+  useEffect(() => {
+    if (!isEdit) return;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/templates/gym/${id}`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (!res.ok) throw new Error(`Failed to load template (${res.status})`);
+
+        const tpl: WorkoutTemplate = await res.json();
+        if (cancelled) return;
+
+        setName(tpl.name ?? '');
+        const rows: TemplateRow[] = (tpl.data?.exercises ?? []).map((e) => ({
+          rowId: uid(),
+          exerciseId: e.exerciseId,
+          exerciseName: e.exerciseName,
+          restSec: e.restSec ?? DEFAULT_REST_SEC,
+          sets: e.sets?.length
+            ? e.sets.map((s) => ({ reps: s.reps ?? 0, weight: s.weight ?? 0 }))
+            : [{ reps: 0, weight: 0 }],
+        }));
+        setItems(rows);
+      } catch (e: any) {
+        alert(e?.message ?? 'Failed to load template');
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isEdit, id, token]);
+
+  // --- Actions ---
   const addExerciseRows = (exerciseIds: string[]) => {
     setItems((prev) => {
       const next = [...prev];
-
-      for (const id of exerciseIds) {
-        const ex = exerciseById.get(id);
+      for (const exId of exerciseIds) {
+        const ex = exerciseById.get(exId);
         if (!ex) continue;
-
-        // ✅ duplicates allowed: every add creates a new rowId
-        const targetSets = 3;
         next.push({
           rowId: uid(),
           exerciseId: ex.id,
           exerciseName: ex.name,
-          targetSets,
-          restSec: 120,
-          sets: Array.from({ length: targetSets }).map(() => ({ reps: 8, weight: 0 })),
+          restSec: DEFAULT_REST_SEC,
+          sets: defaultSetsForExercise(ex.id), // ✅ one-time prefill
         });
       }
-
       return next;
     });
   };
 
-  const removeRow = (rowId: string) => {
-    setItems((prev) => prev.filter((p) => p.rowId !== rowId));
-  };
+  const removeRow = (rowId: string) => setItems((prev) => prev.filter((p) => p.rowId !== rowId));
 
   const moveRow = (rowId: string, dir: -1 | 1) => {
     setItems((prev) => {
@@ -67,7 +151,6 @@ const TemplateBuilderPage: React.FC = () => {
       if (idx < 0) return prev;
       const nextIdx = idx + dir;
       if (nextIdx < 0 || nextIdx >= prev.length) return prev;
-
       const copy = [...prev];
       const [it] = copy.splice(idx, 1);
       copy.splice(nextIdx, 0, it);
@@ -75,31 +158,9 @@ const TemplateBuilderPage: React.FC = () => {
     });
   };
 
-  const setTargetSets = (rowId: string, n: number) => {
-    setItems((prev) =>
-      prev.map((p) => {
-        if (p.rowId !== rowId) return p;
-
-        const targetSets = clampInt(Number.isFinite(n) ? n : 1, 1, 20);
-
-        const old = p.sets ?? [];
-        const nextSets =
-          old.length === targetSets
-            ? old
-            : old.length < targetSets
-              ? [...old, ...Array.from({ length: targetSets - old.length }).map(() => ({ reps: 8, weight: 0 }))]
-              : old.slice(0, targetSets);
-
-        return { ...p, targetSets, sets: nextSets };
-      })
-    );
-  };
-
   const setRestSec = (rowId: string, n: number) => {
     setItems((prev) =>
-      prev.map((p) =>
-        p.rowId === rowId ? { ...p, restSec: clampInt(Number.isFinite(n) ? n : 0, 0, 600) } : p
-      )
+      prev.map((p) => (p.rowId === rowId ? { ...p, restSec: clampInt(n, 0, 600) } : p))
     );
   };
 
@@ -113,17 +174,23 @@ const TemplateBuilderPage: React.FC = () => {
     );
   };
 
-  const resetPrefill = (rowId: string) => {
+  const addSet = (rowId: string) => {
     setItems((prev) =>
-      prev.map((p) =>
-        p.rowId === rowId
-          ? { ...p, sets: Array.from({ length: p.targetSets }).map(() => ({ reps: 8, weight: 0 })) }
-          : p
-      )
+      prev.map((p) => (p.rowId === rowId ? { ...p, sets: [...p.sets, { reps: 0, weight: 0 }] } : p))
     );
   };
 
-  const createTemplate = async () => {
+  const removeSet = (rowId: string, setIdx: number) => {
+    setItems((prev) =>
+      prev.map((p) => {
+        if (p.rowId !== rowId) return p;
+        const nextSets = p.sets.filter((_, i) => i !== setIdx);
+        return { ...p, sets: nextSets.length ? nextSets : [{ reps: 0, weight: 0 }] };
+      })
+    );
+  };
+
+  const saveTemplate = async () => {
     const trimmed = name.trim();
     if (!trimmed || items.length === 0) return;
 
@@ -131,9 +198,9 @@ const TemplateBuilderPage: React.FC = () => {
     try {
       const now = Date.now();
 
-      const tpl: WorkoutTemplate = {
+      const payload: WorkoutTemplate = {
         dataVersion: 1,
-        id: uid(),
+        id: isEdit ? String(id) : uid(),
         module: 'GYM',
         name: trimmed,
         createdAt: now,
@@ -142,34 +209,30 @@ const TemplateBuilderPage: React.FC = () => {
           exercises: items.map((i) => ({
             exerciseId: i.exerciseId,
             exerciseName: i.exerciseName,
-            targetSets: i.targetSets,
             restSec: i.restSec,
-            sets: i.sets.map((s) => ({
-              reps: s.reps,
-              weight: s.weight,
-            })),
+            targetSets: i.sets.length, // keep for compatibility
+            sets: i.sets.map((s) => ({ reps: s.reps ?? 0, weight: s.weight ?? 0 })),
           })),
         },
       };
 
-      const res = await fetch('/api/templates/gym', {
-        method: 'POST',
+      const res = await fetch(isEdit ? `/api/templates/gym/${id}` : `/api/templates/gym`, {
+        method: isEdit ? 'PUT' : 'POST',
         headers: {
           'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify(tpl),
+        body: JSON.stringify(payload),
       });
 
       if (!res.ok) {
         const msg = await res.text().catch(() => '');
-        throw new Error(msg || `Failed to create template (${res.status})`);
+        throw new Error(msg || `Failed to save template (${res.status})`);
       }
 
-      // ✅ go back to templates tab (works even if you later change routes)
-      navigate(-1);
+      navigate('/activities/gym/');
     } catch (e: any) {
-      alert(e?.message ?? 'Failed to create template');
+      alert(e?.message ?? 'Failed to save template');
     } finally {
       setSaving(false);
     }
@@ -180,6 +243,7 @@ const TemplateBuilderPage: React.FC = () => {
       {/* Topbar */}
       <div className="flex items-center justify-between gap-3">
         <button
+          type="button"
           onClick={() => navigate(-1)}
           className="inline-flex items-center justify-center h-11 w-11 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] hover:bg-[var(--glass-strong)] transition-colors"
           aria-label="Back"
@@ -192,19 +256,18 @@ const TemplateBuilderPage: React.FC = () => {
             TEMPLATE BUILDER<span className="text-[var(--primary)]">.</span>
           </div>
           <div className="text-[10px] font-[900] uppercase tracking-[0.45em] text-[var(--text-muted)]">
-            Full screen editor
+            {isEdit ? 'Edit template' : 'Create template'}
           </div>
         </div>
 
         <button
-          onClick={createTemplate}
+          type="button"
+          onClick={saveTemplate}
           disabled={!canSave}
           className="inline-flex items-center gap-2 rounded-2xl bg-[var(--primary)] text-white px-4 py-3 disabled:opacity-60"
         >
           <Save size={16} />
-          <span className="text-[10px] font-[900] uppercase tracking-widest">
-            {saving ? 'Saving…' : 'Save'}
-          </span>
+          <span className="text-[10px] font-[900] uppercase tracking-widest">{saving ? 'Saving…' : 'Save'}</span>
         </button>
       </div>
 
@@ -221,13 +284,14 @@ const TemplateBuilderPage: React.FC = () => {
         />
       </div>
 
-      {/* Exercises header */}
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div className="text-[10px] font-[900] uppercase tracking-widest text-[var(--text-muted)]">
           Exercises ({items.length})
         </div>
 
         <button
+          type="button"
           onClick={() => setShowLibrary(true)}
           className="inline-flex items-center gap-2 rounded-2xl bg-[var(--primary)] text-white px-4 py-3"
         >
@@ -244,16 +308,14 @@ const TemplateBuilderPage: React.FC = () => {
       ) : (
         <div className="space-y-3">
           {items.map((it, idx) => (
-            <div
-              key={it.rowId}
-              className="rounded-3xl border border-[var(--border)] bg-[var(--glass)] backdrop-blur-xl p-5"
-            >
+            <div key={it.rowId} className="rounded-3xl border border-[var(--border)] bg-[var(--glass)] backdrop-blur-xl p-5">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <div className="font-[900] italic truncate text-[var(--text)]">{it.exerciseName}</div>
 
                   <div className="mt-3 flex items-center gap-2">
                     <button
+                      type="button"
                       onClick={() => moveRow(it.rowId, -1)}
                       disabled={idx === 0}
                       className="p-2 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] disabled:opacity-40"
@@ -262,6 +324,7 @@ const TemplateBuilderPage: React.FC = () => {
                       <ChevronUp size={16} />
                     </button>
                     <button
+                      type="button"
                       onClick={() => moveRow(it.rowId, 1)}
                       disabled={idx === items.length - 1}
                       className="p-2 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] disabled:opacity-40"
@@ -270,6 +333,7 @@ const TemplateBuilderPage: React.FC = () => {
                       <ChevronDown size={16} />
                     </button>
                     <button
+                      type="button"
                       onClick={() => removeRow(it.rowId)}
                       className="p-2 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] hover:border-red-500 hover:text-red-500 transition-colors"
                       aria-label="Remove"
@@ -279,58 +343,24 @@ const TemplateBuilderPage: React.FC = () => {
                   </div>
                 </div>
 
+                {/* Rest top-right */}
                 <div className="w-28">
-                  <label className="block text-[9px] font-[900] uppercase tracking-widest text-[var(--text-muted)] mb-1">
-                    Sets
-                  </label>
-                  <input
-                    inputMode="numeric"
-                    value={String(it.targetSets)}
-                    onChange={(e) =>
-                      setTargetSets(it.rowId, parseInt(e.target.value.replace(/[^0-9]/g, ''), 10) || 1)
-                    }
-                    className="w-full rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] px-3 py-2 font-black text-sm"
-                  />
-                </div>
-              </div>
-
-              <div className="mt-4 grid grid-cols-2 gap-3">
-                <div>
                   <label className="block text-[9px] font-[900] uppercase tracking-widest text-[var(--text-muted)] mb-1">
                     Rest (sec)
                   </label>
                   <input
                     inputMode="numeric"
                     value={String(it.restSec)}
-                    onChange={(e) =>
-                      setRestSec(it.rowId, parseInt(e.target.value.replace(/[^0-9]/g, ''), 10) || 0)
-                    }
+                    onChange={(e) => setRestSec(it.rowId, parseInt(e.target.value.replace(/[^0-9]/g, ''), 10) || 0)}
                     className="w-full rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] px-3 py-2 font-black text-sm"
                   />
                 </div>
-
-                <div>
-                  <label className="block text-[9px] font-[900] uppercase tracking-widest text-[var(--text-muted)] mb-1">
-                    Prefill
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => resetPrefill(it.rowId)}
-                    className="w-full rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] px-3 py-2 text-[10px] font-[900] uppercase tracking-widest hover:bg-[var(--glass-strong)]"
-                  >
-                    Reset 8×0
-                  </button>
-                </div>
               </div>
 
-              {/* per-set defaults */}
+              {/* Sets (no numbers) */}
               <div className="mt-5 space-y-2">
                 {it.sets.map((s, i) => (
-                  <div key={i} className="grid grid-cols-6 gap-2 items-center">
-                    <div className="col-span-1 text-[10px] font-black uppercase text-[var(--text-muted)]">
-                      {i + 1}
-                    </div>
-
+                  <div key={i} className="grid grid-cols-12 gap-2 items-center">
                     <input
                       inputMode="decimal"
                       value={s.weight ?? 0}
@@ -339,7 +369,7 @@ const TemplateBuilderPage: React.FC = () => {
                         const num = raw === '' ? 0 : Number(raw);
                         patchSet(it.rowId, i, { weight: Number.isFinite(num) ? num : 0 });
                       }}
-                      className="col-span-3 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] px-3 py-2 font-black text-sm"
+                      className="col-span-6 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] px-3 py-2 font-black text-sm"
                       placeholder="Weight"
                     />
 
@@ -351,18 +381,38 @@ const TemplateBuilderPage: React.FC = () => {
                         const num = raw === '' ? 0 : parseInt(raw, 10);
                         patchSet(it.rowId, i, { reps: Number.isFinite(num) ? num : 0 });
                       }}
-                      className="col-span-2 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] px-3 py-2 font-black text-sm"
+                      className="col-span-4 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] px-3 py-2 font-black text-sm"
                       placeholder="Reps"
                     />
+
+                    <button
+                      type="button"
+                      onClick={() => removeSet(it.rowId, i)}
+                      className="col-span-2 inline-flex items-center justify-center rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] hover:border-red-500 hover:text-red-500 transition-colors py-2"
+                      aria-label="Remove set"
+                      title="Remove set"
+                    >
+                      <X size={16} />
+                    </button>
                   </div>
                 ))}
+              </div>
+
+              {/* Add set */}
+              <div className="mt-4">
+                <button
+                  type="button"
+                  onClick={() => addSet(it.rowId)}
+                  className="w-full rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] px-4 py-3 text-[10px] font-[900] uppercase tracking-widest hover:bg-[var(--glass-strong)]"
+                >
+                  + Add set
+                </button>
               </div>
             </div>
           ))}
         </div>
       )}
 
-      {/* Library */}
       <ExerciseLibraryModal
         open={showLibrary}
         title="ADD EXERCISES"
@@ -372,7 +422,6 @@ const TemplateBuilderPage: React.FC = () => {
         onClose={() => setShowLibrary(false)}
       />
 
-      {/* Bottom hint */}
       {!canSave && (
         <div className="text-center text-[10px] font-[900] uppercase tracking-[0.35em] text-[var(--text-muted)] pt-2">
           Add at least 1 exercise and a name to save.

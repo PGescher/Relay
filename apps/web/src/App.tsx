@@ -70,6 +70,7 @@ const AppContent: React.FC = () => {
             <Route path="/activities/gym/history" element={<GymHistory />} />
             <Route path="/activities/gym/history/:id" element={<GymHistoryDetail />} />
             <Route path="/activities/gym/templates/new" element={<TemplateBuilderPage />} />
+            <Route path="/activities/gym/templates/:id/edit" element={<TemplateBuilderPage />} />
             <Route path="*" element={<Navigate to="/home" />} />
           </Route>
         </>

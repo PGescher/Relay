@@ -1,10 +1,13 @@
 // GymTemplates.tsx (relevante Änderungen)
 import React, { useEffect, useMemo, useState } from 'react';
-import { Plus, Play, Pencil, X } from 'lucide-react';
-import type { WorkoutSession, WorkoutTemplate } from '@relay/shared';
-import { EXERCISES } from './constants';
-import { TemplateBuilderModal } from './TemplateBuilderModal';
+import { Plus, Play, Pencil, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import type { WorkoutSession, WorkoutTemplate } from '@relay/shared';
+
+import SyncButton from '../../components/ui/SyncButton';
+
+
+//import { TemplateBuilderModal } from './TemplateBuilderModal';
 
 const uid = () => (crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`);
 
@@ -18,6 +21,8 @@ const GymTemplates: React.FC<Props> = ({ onStartTemplate }) => {
   const navigate = useNavigate();
 
   const [showBuilder, setShowBuilder] = useState(false);
+
+  const [deleteArmedId, setDeleteArmedId] = useState<string | null>(null);
 
   const token = useMemo(() => localStorage.getItem('relay-token'), []);
 
@@ -38,6 +43,16 @@ const GymTemplates: React.FC<Props> = ({ onStartTemplate }) => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const deleteTemplate = async (id: string) => {
+    const res = await fetch(`/api/templates/gym/${id}`, {
+      method: 'DELETE',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!res.ok) throw new Error('Failed to delete template');
+    setTemplates((prev) => prev.filter((x) => x.id !== id));
+  };
+
 
   const startFromTemplate = (t: WorkoutTemplate) => {
     const ex = t.data.exercises;
@@ -85,7 +100,7 @@ const GymTemplates: React.FC<Props> = ({ onStartTemplate }) => {
         <h2 className="text-2xl font-[900] italic text-[var(--text)]">
           TEMPLATES<span className="text-[var(--primary)]">.</span>
         </h2>
-
+        <SyncButton module="GYM" onDone={() => load()} />
         <button
           //onClick={() => setShowBuilder(true)}
           onClick={() => navigate('/activities/gym/templates/new')}
@@ -105,37 +120,89 @@ const GymTemplates: React.FC<Props> = ({ onStartTemplate }) => {
       ) : (
         <div className="space-y-3">
           {templates.map((t) => (
-            <div
-              key={t.id}
-              className="rounded-3xl border border-[var(--border)] bg-[var(--glass)] backdrop-blur-xl p-5 flex items-center justify-between"
-            >
-              <div className="min-w-0">
-                <div className="font-[900] italic text-[var(--text)] truncate">{t.name}</div>
-                <div className="mt-1 text-[10px] font-[900] uppercase tracking-widest text-[var(--text-muted)]">
-                  {t.data.exercises.length} exercises
+            <div key={t.id}>
+              <div className="rounded-3xl border border-[var(--border)] bg-[var(--glass)] backdrop-blur-xl p-5">
+                <div className="flex items-center justify-between gap-4">
+                  <div className="min-w-0">
+                    <div className="font-[900] italic text-[var(--text)] truncate">{t.name}</div>
+                    <div className="mt-1 text-[10px] font-[900] uppercase tracking-widest text-[var(--text-muted)]">
+                      {t.data.exercises.length} exercises
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        startFromTemplate(t);
+                      }}
+                      className="inline-flex items-center gap-2 rounded-2xl bg-[var(--primary)] text-white px-4 py-3"
+                    >
+                      <Play size={16} />
+                      
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/activities/gym/templates/${t.id}/edit`);
+                      }}
+                      className="inline-flex items-center justify-center rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] px-4 py-3 text-[var(--text)] hover:bg-[var(--glass-strong)]"
+                      title="Edit template"
+                    >
+                      <Pencil size={16} />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={async (e) => {
+                        e.stopPropagation();
+
+                        if (deleteArmedId !== t.id) {
+                          setDeleteArmedId(t.id);
+                          window.setTimeout(() => {
+                            setDeleteArmedId((cur) => (cur === t.id ? null : cur));
+                          }, 4000);
+                          return;
+                        }
+
+                        try {
+                          await deleteTemplate(t.id);
+                          setDeleteArmedId(null);
+                        } catch (err: any) {
+                          alert(err?.message ?? 'Delete failed');
+                          setDeleteArmedId(null);
+                        }
+                      }}
+                      className={[
+                        "inline-flex items-center justify-center rounded-2xl border px-4 py-3 transition-colors",
+                        deleteArmedId === t.id
+                          ? "bg-red-600 text-white border-red-600"
+                          : "bg-[var(--bg-card)] text-[var(--text)] border-[var(--border)] hover:bg-[var(--glass-strong)]",
+                      ].join(' ')}
+                      title={deleteArmedId === t.id ? 'This cannot be undone' : 'Delete template'}
+                    >
+                      <Trash2 size={16} />
+                      <span className="ml-2 text-[10px] font-[900] uppercase tracking-widest">
+                        {deleteArmedId === t.id ? 'Confirm' : 'Delete'}
+                      </span>
+                    </button>
+                  </div>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => startFromTemplate(t)}
-                  className="inline-flex items-center gap-2 rounded-2xl bg-[var(--primary)] text-white px-4 py-3"
-                >
-                  <Play size={16} />
-                  <span className="text-[10px] font-[900] uppercase tracking-widest">Start</span>
-                </button>
-
-                <button
-                  disabled
-                  className="inline-flex items-center gap-2 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] px-4 py-3 text-[var(--text-muted)]"
-                  title="Edit coming soon"
-                >
-                  <Pencil size={16} />
-                </button>
-              </div>
+              {/* ✅ Hinweis unter der Card */}
+              {deleteArmedId === t.id && (
+                <div className="mt-2 text-[10px] font-[900] uppercase tracking-[0.35em] text-red-500">
+                  Cannot be undone
+                </div>
+              )}
             </div>
           ))}
         </div>
+        
       )}
       {/* ✅ Builder*/}
       
