@@ -4,6 +4,8 @@ import { Plus, Play, Pencil, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import type { WorkoutSession, WorkoutTemplate } from '@relay/shared';
 
+import { useApp } from '../../context/AppContext';
+
 import SyncButton from '../../components/ui/SyncButton';
 
 
@@ -12,10 +14,12 @@ import SyncButton from '../../components/ui/SyncButton';
 const uid = () => (crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`);
 
 type Props = {
-  onStartTemplate: (workout: WorkoutSession) => void;
+  onStartTemplate?: (workout: WorkoutSession) => void;
 };
 
 const GymTemplates: React.FC<Props> = ({ onStartTemplate }) => {
+  const { setCurrentWorkout } = useApp();
+
   const [templates, setTemplates] = useState<WorkoutTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
@@ -61,7 +65,7 @@ const GymTemplates: React.FC<Props> = ({ onStartTemplate }) => {
       dataVersion: 1,
       id: uid(),
       startTime: Date.now(),
-      updatedAt: Date.now(),      // ✅ wichtig bei dir
+      updatedAt: Date.now(),
       status: 'active',
       module: 'GYM',
       templateIdUsed: t.id,
@@ -79,7 +83,12 @@ const GymTemplates: React.FC<Props> = ({ onStartTemplate }) => {
       })),
     };
 
-    onStartTemplate(workout);
+    if (onStartTemplate) {
+      onStartTemplate(workout);
+    } else {
+      setCurrentWorkout(workout); // Im Globalen State speichern
+      navigate('/activities/gym/active'); // Zur aktiven Session springen
+    }
   };
 
   const createTemplate = async (payload: WorkoutTemplate) => {
@@ -102,7 +111,6 @@ const GymTemplates: React.FC<Props> = ({ onStartTemplate }) => {
         </h2>
         <SyncButton module="GYM" onDone={() => load()} />
         <button
-          //onClick={() => setShowBuilder(true)}
           onClick={() => navigate('/activities/gym/templates/new')}
           className="inline-flex items-center gap-2 rounded-2xl bg-[var(--primary)] text-white px-4 py-3"
         >
@@ -140,7 +148,6 @@ const GymTemplates: React.FC<Props> = ({ onStartTemplate }) => {
                       className="inline-flex items-center gap-2 rounded-2xl bg-[var(--primary)] text-white px-4 py-3"
                     >
                       <Play size={16} />
-                      
                     </button>
 
                     <button
@@ -149,8 +156,7 @@ const GymTemplates: React.FC<Props> = ({ onStartTemplate }) => {
                         e.stopPropagation();
                         navigate(`/activities/gym/templates/${t.id}/edit`);
                       }}
-                      className="inline-flex items-center justify-center rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] px-4 py-3 text-[var(--text)] hover:bg-[var(--glass-strong)]"
-                      title="Edit template"
+                      className="inline-flex items-center justify-center rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] px-4 py-3 text-[var(--text)]"
                     >
                       <Pencil size={16} />
                     </button>
@@ -159,30 +165,22 @@ const GymTemplates: React.FC<Props> = ({ onStartTemplate }) => {
                       type="button"
                       onClick={async (e) => {
                         e.stopPropagation();
-
                         if (deleteArmedId !== t.id) {
                           setDeleteArmedId(t.id);
-                          window.setTimeout(() => {
-                            setDeleteArmedId((cur) => (cur === t.id ? null : cur));
-                          }, 4000);
+                          window.setTimeout(() => setDeleteArmedId(null), 4000);
                           return;
                         }
-
                         try {
                           await deleteTemplate(t.id);
                           setDeleteArmedId(null);
                         } catch (err: any) {
                           alert(err?.message ?? 'Delete failed');
-                          setDeleteArmedId(null);
                         }
                       }}
                       className={[
                         "inline-flex items-center justify-center rounded-2xl border px-4 py-3 transition-colors",
-                        deleteArmedId === t.id
-                          ? "bg-red-600 text-white border-red-600"
-                          : "bg-[var(--bg-card)] text-[var(--text)] border-[var(--border)] hover:bg-[var(--glass-strong)]",
+                        deleteArmedId === t.id ? "bg-red-600 text-white border-red-600" : "bg-[var(--bg-card)] text-[var(--text)] border-[var(--border)]"
                       ].join(' ')}
-                      title={deleteArmedId === t.id ? 'This cannot be undone' : 'Delete template'}
                     >
                       <Trash2 size={16} />
                       <span className="ml-2 text-[10px] font-[900] uppercase tracking-widest">
@@ -192,21 +190,10 @@ const GymTemplates: React.FC<Props> = ({ onStartTemplate }) => {
                   </div>
                 </div>
               </div>
-
-              {/* ✅ Hinweis unter der Card */}
-              {deleteArmedId === t.id && (
-                <div className="mt-2 text-[10px] font-[900] uppercase tracking-[0.35em] text-red-500">
-                  Cannot be undone
-                </div>
-              )}
             </div>
           ))}
         </div>
-        
       )}
-      {/* ✅ Builder*/}
-      
-      
     </div>
   );
 };

@@ -1,25 +1,67 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Users, Zap, TrendingUp, ArrowRight, Flame } from 'lucide-react';
+import { getVolume, getConsistency } from '../gym-tracker/analyticsUtils';
+import { useApp } from '../../context/AppContext';
 
 interface HomeHubProps {
   user: any;
 }
 
 const HomeHub: React.FC<HomeHubProps> = ({ user }) => {
+  const { workoutHistory } = useApp();
   const navigate = useNavigate();
 
+  const consistency = useMemo(() => getConsistency(workoutHistory), [workoutHistory]);
+  
+  const stats = useMemo(() => {
+    const monthStart = new Date();
+    monthStart.setDate(1);
+    const thisMonth = workoutHistory.filter(w => w.startTime > monthStart.getTime());
+    return {
+      monthVolume: thisMonth.reduce((acc, w) => acc + getVolume(w), 0),
+      count: thisMonth.length
+    };
+  }, [workoutHistory]);
+
+
   return (
-    <div className="px-4 md:px-6 py-6 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      {/* Welcome / hero card */}
-      <div
-        className={[
-          "rounded-[28px] overflow-hidden",
-          "border border-[var(--border)]",
-          "bg-[var(--glass)] backdrop-blur-xl",
-          "shadow-[0_30px_90px_rgba(0,0,0,0.18)]",
-        ].join(" ")}
-      >
+    <div className="px-4 md:px-6 py-6 space-y-6">
+      {/* Hero Card */}
+      <div className="rounded-[32px] border border-[var(--border)] bg-[var(--glass)] p-7 shadow-2xl">
+        <div className="flex justify-between items-start">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.4em] text-[var(--text-muted)]">Athlete Status</p>
+            <h2 className="text-4xl font-black italic uppercase text-[var(--text)] mt-2">
+              {user?.displayName || 'Member'}<span className="text-[var(--primary)]">.</span>
+            </h2>
+          </div>
+          <div className="flex flex-col items-end">
+            <div className="flex gap-1">
+              {consistency.map((day, i) => (
+                <div 
+                  key={i} 
+                  className={`w-2 h-6 rounded-full transition-all ${day.active ? 'bg-[var(--primary)] shadow-[0_0_10px_var(--primary)]' : 'bg-[var(--border)]'}`} 
+                />
+              ))}
+            </div>
+            <p className="text-[9px] font-black uppercase mt-2 text-[var(--text-muted)]">7-Day Consistency</p>
+          </div>
+        </div>
+
+        {/* High-Level Metrics */}
+        <div className="grid grid-cols-2 gap-4 mt-8">
+          <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl p-4">
+            <p className="text-[9px] font-black uppercase text-[var(--text-muted)]">This Month</p>
+            <p className="text-2xl font-black italic">{stats.count} <span className="text-sm font-bold text-[var(--text-muted)]">Sessions</span></p>
+          </div>
+          <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl p-4">
+            <p className="text-[9px] font-black uppercase text-[var(--text-muted)]">Monthly Volume</p>
+            <p className="text-2xl font-black italic">{Math.round(stats.monthVolume / 1000)}k <span className="text-sm font-bold text-[var(--text-muted)]">kg</span></p>
+          </div>
+        </div>
+      </div>
+      {/* ... rest of your panels */}
         <div className="px-7 pt-7 pb-6">
           <div className="flex items-start justify-between gap-6">
             <div className="min-w-0">
@@ -70,8 +112,6 @@ const HomeHub: React.FC<HomeHubProps> = ({ user }) => {
               </span>
             </div>
           </div>
-        </div>
-
         <div className="h-[2px] bg-gradient-to-r from-transparent via-[var(--primary)]/30 to-transparent" />
       </div>
 
@@ -91,7 +131,7 @@ const HomeHub: React.FC<HomeHubProps> = ({ user }) => {
         />
       </div>
     </div>
-  );
+   );
 };
 
 const HubPanel: React.FC<{

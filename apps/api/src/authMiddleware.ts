@@ -10,10 +10,12 @@ export function requireAuth(req: AuthedRequest, res: Response, next: NextFunctio
   if (!token) return res.status(401).json({ error: 'No token' });
 
   try {
+    // Cast the result to the expected object shape
     const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
+    
     req.userId = decoded.userId;
     next();
-  } catch {
+  } catch (err) {
     return res.status(401).json({ error: 'Invalid token' });
   }
 }

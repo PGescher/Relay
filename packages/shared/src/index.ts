@@ -136,7 +136,7 @@ export interface WorkoutSession {
 
   id: string;
   module: ActivityModule;
-
+  name?: string;
   status: WorkoutStatus;
 
   updatedAt: number; // ms, whenever workout changes locally (finish sets it too)
@@ -229,3 +229,23 @@ export interface Post {
     stats: string;
   };
 }
+
+
+// IMPORT SCHEMAS GYM MODULE
+
+export const StrongCSVRowSchema = z.object({
+  Datum: z.string(),
+  "Workout-Name": z.string(),
+  Dauer: z.string(),
+  "Name der Übung": z.string(),
+  "Reihenfolge festlegen": z.preprocess((val) => Number(val), z.number()),
+  Gewicht: z.preprocess((val) => (typeof val === 'string' ? parseFloat(val.replace(',', '.')) : val), z.number()),
+  "Wiederh.": z.preprocess((val) => Number(val), z.number()),
+  Entfernung: z.preprocess((val) => Number(val), z.number()),
+  Sekunden: z.preprocess((val) => Number(val), z.number()),
+  Notizen: z.string().optional(),
+  "Workout-Notizen": z.string().optional(),
+  RPE: z.preprocess((val) => (val && val !== "" ? parseFloat(String(val).replace(',', '.')) : null), z.number().nullable()),
+});
+
+export type StrongCSVRow = z.infer<typeof StrongCSVRowSchema>;

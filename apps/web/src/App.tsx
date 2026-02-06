@@ -27,7 +27,7 @@ import GymImportExport from './features/gym-tracker/GymImportExport';
 
 
 //import { registerSW } from 'virtual:pwa-register';
-
+/*
 const updateSW = registerSW({
   immediate: true,
   onNeedRefresh() {
@@ -39,6 +39,7 @@ const updateSW = registerSW({
     console.log('App ready to work offline');
   },
 });
+*/
 
 // This logic detects if we are in a limited environment (like some web previews)
 const Router = typeof window !== 'undefined' && window.location.protocol === 'blob:' 

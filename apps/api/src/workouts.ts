@@ -222,4 +222,30 @@ router.get('/:id', requireAuth, async (req: AuthedRequest, res) => {
   }
 });
 
+// DELETE /api/workouts/:id
+router.delete('/:id', requireAuth, async (req: AuthedRequest, res) => {
+  const { id } = req.params;
+  const userId = req.userId;
+
+  try {
+    const workout = await prisma.workout.findUnique({ where: { id } });
+
+    if (!workout || workout.userId !== userId) {
+      return res.status(404).json({ error: "Workout not found or unauthorized" });
+    }
+
+    await prisma.workout.update({
+      where: { id },
+      data: {
+        deletedAt: new Date(),
+        updatedAt: new Date(), // Important for sync
+      }
+    });
+
+    res.json({ success: true, message: "Workout deleted" });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to delete workout" });
+  }
+});
+
 export default router;

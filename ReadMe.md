@@ -93,6 +93,9 @@ pnpm --filter @relay/api install
 pnpm --filter @relay/api exec prisma generate
 "
 
+or 
+ctrl+shift+P and Restart TS Server
+
 docker compose -f docker-compose.dev.yml exec api sh -lc   "cd /app/apps/api && pnpm exec prisma migrate deploy"
 
 
