@@ -8,7 +8,14 @@ import { useApp } from '../../context/AppContext';
 import { useAuth } from '../../context/AuthContext';
 
 import { EXERCISES } from './constants';
-import { WorkoutStatus, type ExerciseLog, type SetLog, type WorkoutEvent, type WorkoutSession, type WorkoutTemplate } from '@relay/shared';
+import {
+  WorkoutStatus,
+  type ExerciseLog,
+  type SetLog,
+  type WorkoutEvent,
+  type WorkoutSession,
+  type WorkoutTemplate,
+} from '@relay/shared';
 
 import { saveWorkoutDraft, clearWorkoutDraft, loadLastWorkoutDraft } from './workoutDraft';
 import { FinishWorkoutModal } from './FinishWorkoutModal';
@@ -62,8 +69,7 @@ type ExerciseLogWithId = ExerciseLog & { logId: string };
 function ensureLogIds(logs: ExerciseLog[]): ExerciseLogWithId[] {
   return logs.map((l, idx) => {
     const anyL = l as any;
-    const logId =
-      typeof anyL.logId === 'string' && anyL.logId.length ? anyL.logId : `${l.exerciseId}-${idx}-${uid()}`;
+    const logId = typeof anyL.logId === 'string' && anyL.logId.length ? anyL.logId : `${l.exerciseId}-${idx}-${uid()}`;
     return { ...(l as any), logId } as ExerciseLogWithId;
   });
 }
@@ -126,7 +132,6 @@ const ExerciseCard: React.FC<ExerciseCardProps> = (props) => {
 
   const restForThis = getRestForExercise(log.exerciseId);
 
-  // double-tap confirm state for delete-set
   const [armedDeleteKey, setArmedDeleteKey] = useState<string | null>(null);
   const armTimerRef = useRef<number | null>(null);
 
@@ -155,60 +160,89 @@ const ExerciseCard: React.FC<ExerciseCardProps> = (props) => {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 12 }}
+      initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.98 }}
+      exit={{ opacity: 0, scale: 0.985 }}
       transition={{ type: 'spring', stiffness: 320, damping: 30 }}
-      className="rounded-3xl border border-[var(--border)] bg-[var(--glass)] backdrop-blur-xl p-5 overflow-hidden"
+      className="
+        w-full
+        rounded-2xl
+        border border-[var(--border)]
+        bg-[var(--bg-card)]/35
+        backdrop-blur-md
+        px-3 py-3
+        overflow-hidden
+      "
       onPointerDown={() => {
         if (armedDeleteKey) disarm();
       }}
     >
-      <div className="flex justify-between items-start mb-4 gap-4">
-        <div className="min-w-0">
-          <h3 className="font-black italic text-lg truncate">{log.exerciseName}</h3>
+      {/* Header row */}
+      <div className="flex items-center gap-2 mb-2">
+        <h3 className="flex-1 min-w-0 font-black italic text-[15px] truncate">{log.exerciseName}</h3>
 
-          <div className="mt-2 flex items-center gap-2 flex-wrap">
-            <button
-              type="button"
-              data-no-drag
-              onClick={(e) => {
-                e.stopPropagation();
-                setRestConfigForExerciseId(log.exerciseId);
-              }}
-              className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--bg-card)] px-3 py-1 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)] hover:text-[var(--primary)] hover:border-[var(--primary)] transition-colors"
-            >
-              <Timer size={14} />
-              Rest {formatMMSS(restForThis)}
-            </button>
+        <button
+          type="button"
+          data-no-drag
+          onClick={(e) => {
+            e.stopPropagation();
+            setRestConfigForExerciseId(log.exerciseId);
+          }}
+          className="
+            flex items-center gap-1
+            h-8 px-2
+            rounded-xl
+            border border-[var(--border)]
+            bg-[var(--bg)]/55
+            text-[var(--text-muted)]
+            hover:text-[var(--primary)]
+            hover:border-[var(--primary)]
+            transition-colors
+            shrink-0
+          "
+          aria-label="Rest"
+          title="Rest"
+        >
+          <Timer size={15} />
+          <span className="text-[11px] font-black tabular-nums">{formatMMSS(restForThis)}</span>
+        </button>
 
-            <button
-              type="button"
-              data-no-drag
-              onClick={(e) => {
-                e.stopPropagation();
-                deleteExercise(exIndex);
-              }}
-              className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--bg-card)] px-3 py-1 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)] hover:text-red-500 hover:border-red-500 transition-colors"
-              aria-label="Delete exercise"
-            >
-              <Trash2 size={14} />
-            </button>
-          </div>
-        </div>
+        <button
+          type="button"
+          data-no-drag
+          onClick={(e) => {
+            e.stopPropagation();
+            deleteExercise(exIndex);
+          }}
+          className="
+            h-8 w-8
+            rounded-xl
+            border border-[var(--border)]
+            bg-[var(--bg)]/55
+            flex items-center justify-center
+            text-[var(--text-muted)]
+            hover:text-red-500 hover:border-red-500
+            transition-colors
+            shrink-0
+          "
+          aria-label="Delete exercise"
+          title="Delete exercise"
+        >
+          <Trash2 size={15} />
+        </button>
       </div>
 
-      <div className="space-y-2">
-        {/* 7 cols: Set | Prev(2) | Weight | Reps | Done | Del */}
-        <div className="grid grid-cols-7 gap-2 px-2 text-[10px] font-black uppercase text-[var(--text-muted)]">
-          <span>Set</span>
-          <span className="col-span-2">Prev</span>
-          <span>Weight</span>
-          <span>Reps</span>
-          <span className="text-center">Done</span>
-          <span className="text-center">Del</span>
-        </div>
+      {/* Columns header (tighter + smaller) */}
+      <div className="grid grid-cols-7 gap-2 px-1 pb-1 text-[9px] font-black uppercase text-[var(--text-muted)] opacity-80">
+        <span>Set</span>
+        <span className="col-span-2">Prev</span>
+        <span className="text-center">Kg</span>
+        <span className="text-center">Reps</span>
+        <span className="text-center">✓</span>
+        <span className="text-center">Del</span>
+      </div>
 
+      <div className="space-y-1.5">
         {log.sets.map((set, setIndex) => {
           const completed = !!set.isCompleted;
           const ghostLabel = formatGhost(log.exerciseId, setIndex);
@@ -251,14 +285,14 @@ const ExerciseCard: React.FC<ExerciseCardProps> = (props) => {
               onTouchMove={onTouchMove}
               onTouchEnd={onTouchEnd}
               className={[
-                'grid grid-cols-7 gap-2 items-center p-2 rounded-xl transition-colors',
-                completed ? 'bg-[var(--primary-soft)]' : 'bg-transparent',
+                'grid grid-cols-7 gap-2 items-center px-1 py-1.5 rounded-xl transition-colors',
+                completed ? 'bg-[var(--primary-soft)]/70' : 'bg-transparent',
               ].join(' ')}
               onPointerDown={(e) => e.stopPropagation()}
             >
-              <span className="font-black text-sm">{setIndex + 1}</span>
+              <span className="font-black text-[12px]">{setIndex + 1}</span>
 
-              <span className="col-span-2 text-[10px] font-black uppercase tracking-wider text-[var(--text-muted)] truncate">
+              <span className="col-span-2 text-[9px] font-black uppercase tracking-wider text-[var(--text-muted)] truncate opacity-80">
                 {ghostLabel || '—'}
               </span>
 
@@ -273,7 +307,17 @@ const ExerciseCard: React.FC<ExerciseCardProps> = (props) => {
                   const num = cleaned === '' ? 0 : Number(cleaned);
                   updateSet(exIndex, setIndex, { weight: Number.isFinite(num) ? num : 0 });
                 }}
-                className="rounded-lg p-2 text-xs font-bold text-center w-full bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-soft)]"
+                className="
+                  rounded-lg
+                  px-2 py-1.5
+                  text-[12px] font-black text-center
+                  w-full
+                  bg-[var(--bg)]/55
+                  border border-[var(--border)]
+                  text-[var(--text)]
+                  placeholder:text-[var(--text-muted)]
+                  focus:outline-none focus:ring-2 focus:ring-[var(--primary-soft)]
+                "
               />
 
               <input
@@ -286,24 +330,33 @@ const ExerciseCard: React.FC<ExerciseCardProps> = (props) => {
                   const num = cleaned === '' ? 0 : parseInt(cleaned, 10);
                   updateSet(exIndex, setIndex, { reps: Number.isFinite(num) ? num : 0 });
                 }}
-                className="rounded-lg p-2 text-xs font-bold text-center w-full bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-soft)]"
+                className="
+                  rounded-lg
+                  px-2 py-1.5
+                  text-[12px] font-black text-center
+                  w-full
+                  bg-[var(--bg)]/55
+                  border border-[var(--border)]
+                  text-[var(--text)]
+                  placeholder:text-[var(--text-muted)]
+                  focus:outline-none focus:ring-2 focus:ring-[var(--primary-soft)]
+                "
               />
 
-              {/* Done with countdown badge */}
               <div className="relative flex justify-center">
                 <button
                   data-no-drag
                   type="button"
                   onClick={() => toggleComplete(exIndex, setIndex)}
                   className={[
-                    'relative flex justify-center items-center h-10 w-10 rounded-xl transition-all border',
+                    'relative flex justify-center items-center h-9 w-9 rounded-xl transition-all border',
                     completed
                       ? 'bg-[var(--primary)] text-white border-white/10'
-                      : 'bg-[var(--bg-card)] text-[var(--text-muted)] border-[var(--border)] hover:text-[var(--primary)] hover:border-[var(--primary)]',
+                      : 'bg-[var(--bg)]/55 text-[var(--text-muted)] border-[var(--border)] hover:text-[var(--primary)] hover:border-[var(--primary)]',
                   ].join(' ')}
                   aria-label="Toggle set completed"
                 >
-                  <Check size={18} />
+                  <Check size={16} />
                   {isAnchoredSet && (
                     <span className="absolute -top-2 -right-2 px-2 py-0.5 rounded-full bg-[var(--primary)] text-white text-[10px] font-black shadow tabular-nums">
                       {formatMMSS(restRemaining)}
@@ -312,7 +365,6 @@ const ExerciseCard: React.FC<ExerciseCardProps> = (props) => {
                 </button>
               </div>
 
-              {/* Delete set double tap confirm */}
               <button
                 data-no-drag
                 type="button"
@@ -325,28 +377,28 @@ const ExerciseCard: React.FC<ExerciseCardProps> = (props) => {
                   armDelete(key);
                 }}
                 className={[
-                  'flex justify-center items-center h-10 w-10 mx-auto rounded-xl transition-all border',
+                  'flex justify-center items-center h-9 w-9 mx-auto rounded-xl transition-all border',
                   isArmed
                     ? 'bg-red-500/15 text-red-500 border-red-500'
-                    : 'bg-[var(--bg-card)] text-[var(--text-muted)] border-[var(--border)] hover:text-red-500 hover:border-red-500',
+                    : 'bg-[var(--bg)]/55 text-[var(--text-muted)] border-[var(--border)] hover:text-red-500 hover:border-red-500',
                 ].join(' ')}
                 aria-label={isArmed ? 'Tap again to confirm delete' : 'Delete set'}
                 title={isArmed ? 'Tap again to confirm' : 'Delete'}
               >
-                <Trash2 size={16} />
+                <Trash2 size={15} />
               </button>
             </div>
           );
         })}
       </div>
 
-      {/* Inline rest bar under exercise (only for anchored exercise) */}
+      {/* Anchored rest row (kept, but slimmer) */}
       {isAnchoredExercise && (
-        <div className="mt-4 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] overflow-hidden">
-          <div className="px-4 py-3 flex items-center justify-between gap-3">
+        <div className="mt-2 rounded-2xl border border-[var(--border)] bg-[var(--bg)]/55 overflow-hidden">
+          <div className="px-3 py-2 flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 min-w-0">
-              <Timer size={16} className="text-[var(--primary)]" />
-              <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">Rest</span>
+              <Timer size={15} className="text-[var(--primary)]" />
+              <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-muted)]">Rest</span>
             </div>
 
             <div className="flex items-center gap-2">
@@ -354,12 +406,12 @@ const ExerciseCard: React.FC<ExerciseCardProps> = (props) => {
                 data-no-drag
                 type="button"
                 onClick={() => addRest(-30)}
-                className="px-3 py-2 rounded-xl border border-[var(--border)] bg-[var(--bg)] text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)] hover:text-[var(--primary)] hover:border-[var(--primary)] transition-colors"
+                className="px-2 py-1.5 rounded-xl border border-[var(--border)] bg-[var(--bg)] text-[9px] font-black uppercase tracking-widest text-[var(--text-muted)] hover:text-[var(--primary)] hover:border-[var(--primary)] transition-colors"
               >
                 -30
               </button>
 
-              <span className="text-xl font-black italic text-[var(--primary)] tabular-nums min-w-[64px] text-center">
+              <span className="text-lg font-black italic text-[var(--primary)] tabular-nums min-w-[58px] text-center">
                 {formatMMSS(restRemaining)}
               </span>
 
@@ -367,7 +419,7 @@ const ExerciseCard: React.FC<ExerciseCardProps> = (props) => {
                 data-no-drag
                 type="button"
                 onClick={() => addRest(+30)}
-                className="px-3 py-2 rounded-xl border border-[var(--border)] bg-[var(--bg)] text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)] hover:text-[var(--primary)] hover:border-[var(--primary)] transition-colors"
+                className="px-2 py-1.5 rounded-xl border border-[var(--border)] bg-[var(--bg)] text-[9px] font-black uppercase tracking-widest text-[var(--text-muted)] hover:text-[var(--primary)] hover:border-[var(--primary)] transition-colors"
               >
                 +30
               </button>
@@ -376,30 +428,38 @@ const ExerciseCard: React.FC<ExerciseCardProps> = (props) => {
                 data-no-drag
                 type="button"
                 onClick={stopRest}
-                className="w-10 h-10 rounded-xl border border-[var(--border)] bg-[var(--bg)] flex items-center justify-center text-[var(--text-muted)] hover:text-red-500 hover:border-red-500 transition-colors"
+                className="w-9 h-9 rounded-xl border border-[var(--border)] bg-[var(--bg)] flex items-center justify-center text-[var(--text-muted)] hover:text-red-500 hover:border-red-500 transition-colors"
                 aria-label="Cancel rest"
               >
-                <X size={16} />
+                <X size={14} />
               </button>
             </div>
           </div>
 
-          <div className="h-2 bg-[var(--bg)] border-t border-[var(--border)]">
-            <div
-              className="h-full bg-[var(--primary)]"
-              style={{ width: `${restTotal > 0 ? (restRemaining / restTotal) * 100 : 0}%` }}
-            />
+          <div className="h-1.5 bg-[var(--bg)] border-t border-[var(--border)]">
+            <div className="h-full bg-[var(--primary)]" style={{ width: `${restTotal > 0 ? (restRemaining / restTotal) * 100 : 0}%` }} />
           </div>
         </div>
       )}
 
+      {/* Add set (slim) */}
       <button
         data-no-drag
         type="button"
         onClick={() => addSet(exIndex)}
-        className="w-full mt-4 border-2 border-dashed border-[var(--border)] p-3 rounded-xl text-[var(--text-muted)] font-black text-xs uppercase tracking-widest hover:border-[var(--primary)] hover:text-[var(--primary)] transition-all"
+        className="
+          w-full mt-2
+          border border-dashed border-[var(--border)]
+          px-3 py-2
+          rounded-xl
+          text-[var(--text-muted)]
+          font-black text-[10px] uppercase tracking-widest
+          hover:border-[var(--primary)]
+          hover:text-[var(--primary)]
+          transition-colors
+        "
       >
-        + ADD SET
+        + Add set
       </button>
     </motion.div>
   );
@@ -495,18 +555,19 @@ const OverviewRow: React.FC<OverviewRowProps> = ({ id, log, pos, count, onDelete
 // Main Component
 // ---------------------------
 const ActiveWorkout: React.FC = () => {
-  const { currentWorkout, setCurrentWorkout, setWorkoutHistory, workoutHistory } = useApp();
+  const app = useApp() as any;
+  const { currentWorkout, setCurrentWorkout, setWorkoutHistory, workoutHistory } = app;
   const navigate = useNavigate();
   const { user, token } = useAuth();
+
+  const handMode = (app?.handMode as 'left' | 'right' | undefined) ?? ((localStorage.getItem('relay:handMode') as any) || 'right');
 
   const [timer, setTimer] = useState(0);
   const [showExercisePicker, setShowExercisePicker] = useState(false);
 
-  // Reorder mode (overlay inside content, keeps AppShell + bottom nav visible)
   const [showReorderTab, setShowReorderTab] = useState(false);
   const reorderScrollRef = useRef<HTMLDivElement | null>(null);
 
-  // In-memory events
   const [events, setEvents] = useState<WorkoutEvent[]>([]);
   const appendEvent = (type: WorkoutEvent['type'], payload?: WorkoutEvent['payload']) => {
     if (!currentWorkout) return;
@@ -520,7 +581,6 @@ const ActiveWorkout: React.FC = () => {
     setEvents((prev) => [ev, ...prev]);
   };
 
-  // Rest countdown (inline only)
   const [restRemaining, setRestRemaining] = useState<number>(0);
   const [restTotal, setRestTotal] = useState<number>(0);
   const [restRunning, setRestRunning] = useState<boolean>(false);
@@ -528,24 +588,18 @@ const ActiveWorkout: React.FC = () => {
   const restStartedAtRef = useRef<number | null>(null);
   const [restAnchor, setRestAnchor] = useState<{ logId: string; setId: string } | null>(null);
 
-  // Per-exercise rest config persisted
   const DEFAULT_REST = 120;
   const [restByExerciseId, setRestByExerciseId] = useState<Record<string, number>>({});
   const [restConfigForExerciseId, setRestConfigForExerciseId] = useState<string | null>(null);
 
-  // Swipe tracking per set.id
   const swipeRef = useRef<Record<string, SwipeState>>({});
 
-  // Finish modal
   const [showFinish, setShowFinish] = useState(false);
   const [finishing, setFinishing] = useState(false);
-  const [incompletePolicy, setIncompletePolicy] = useState<IncompletePolicy>('delete');
   const [incompleteCount, setIncompleteCount] = useState(0);
 
-  // Reorder: stable list of ids
   const [order, setOrder] = useState<string[]>([]);
 
-  // Restore draft ONCE if someone lands here without memory state
   useEffect(() => {
     if (currentWorkout) return;
 
@@ -560,33 +614,27 @@ const ActiveWorkout: React.FC = () => {
     navigate('/activities/gym', { replace: true });
   }, [currentWorkout, setCurrentWorkout, navigate]);
 
-  // Load persisted rest config
   useEffect(() => {
     try {
       const raw = localStorage.getItem(REST_STORAGE_KEY);
       if (!raw) return;
       const parsed = JSON.parse(raw);
       if (parsed && typeof parsed === 'object') setRestByExerciseId(parsed);
-    } catch {
-      // ignore
-    }
+    } catch {}
   }, []);
 
-  // Persist rest config
   useEffect(() => {
     try {
       localStorage.setItem(REST_STORAGE_KEY, JSON.stringify(restByExerciseId));
-    } catch {
-      // ignore
-    }
+    } catch {}
   }, [restByExerciseId]);
 
-  // Ensure logIds + init order on workout switch
   useEffect(() => {
     if (!currentWorkout) return;
 
     const withIds = ensureLogIds(currentWorkout.logs);
     const changed = withIds.some((l, i) => (currentWorkout.logs[i] as any)?.logId !== l.logId);
+
     if (changed) {
       setCurrentWorkout({ ...currentWorkout, logs: withIds });
       return;
@@ -596,7 +644,6 @@ const ActiveWorkout: React.FC = () => {
     setOrder((prev) => {
       if (!prev.length) return ids;
 
-      // keep existing order where possible, add missing ids at end
       const prevSet = new Set(prev);
       const kept = prev.filter((id) => ids.includes(id));
       const merged = [...kept];
@@ -604,9 +651,8 @@ const ActiveWorkout: React.FC = () => {
       return merged;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentWorkout?.id]);
+  }, [currentWorkout?.id, currentWorkout?.logs?.length]);
 
-  // Workout timer
   useEffect(() => {
     if (!currentWorkout) return;
     const tick = () => setTimer(Math.floor((Date.now() - currentWorkout.startTime) / 1000));
@@ -615,7 +661,6 @@ const ActiveWorkout: React.FC = () => {
     return () => window.clearInterval(interval);
   }, [currentWorkout]);
 
-  // Rest countdown
   useEffect(() => {
     if (!restRunning) return;
 
@@ -679,7 +724,6 @@ const ActiveWorkout: React.FC = () => {
     setRestTotal((t) => Math.max(0, t + delta));
   };
 
-  // Scroll reorder to top on open (smooth/no jump)
   useEffect(() => {
     if (!showReorderTab) return;
     requestAnimationFrame(() => {
@@ -687,9 +731,8 @@ const ActiveWorkout: React.FC = () => {
     });
   }, [showReorderTab]);
 
-  // --- Ghost lookup from latest completed workout per exerciseId ---
   const lastLogByExerciseId = useMemo(() => {
-    const completed = workoutHistory.filter((w) => w.status === WorkoutStatus.completed);
+    const completed = workoutHistory.filter((w: WorkoutSession) => w.status === WorkoutStatus.completed);
     const map = new Map<string, ExerciseLog>();
     for (const w of completed) {
       for (const log of w.logs) {
@@ -715,14 +758,12 @@ const ActiveWorkout: React.FC = () => {
     return `${w} × ${r}`;
   };
 
-  // Rest helper
   const getRestForExercise = (exerciseId: string) => restByExerciseId[exerciseId] ?? DEFAULT_REST;
 
   const ensureRestEntry = (exerciseId: string) => {
     setRestByExerciseId((prev) => (prev[exerciseId] ? prev : { ...prev, [exerciseId]: DEFAULT_REST }));
   };
 
-  // Reorder apply (strings -> logs reorder)
   const applyOrderToWorkout = (nextOrder: string[]) => {
     if (!currentWorkout) return;
 
@@ -749,9 +790,7 @@ const ActiveWorkout: React.FC = () => {
 
     const now = Date.now();
     const startedEditingAt =
-      (data.weight != null || data.reps != null) && !(current as any).startedEditingAt
-        ? now
-        : (current as any).startedEditingAt;
+      (data.weight != null || data.reps != null) && !(current as any).startedEditingAt ? now : (current as any).startedEditingAt;
 
     newLogs[exerciseIndex].sets[setIndex] = { ...(current as any), ...data, startedEditingAt } as any;
     setCurrentWorkout({ ...currentWorkout, logs: newLogs });
@@ -772,7 +811,7 @@ const ActiveWorkout: React.FC = () => {
       (typeof w?.startTime === 'number' && w.startTime) ||
       0;
 
-    const sorted = [...workoutHistory].sort((a, b) => ts(b) - ts(a));
+    const sorted = [...workoutHistory].sort((a: any, b: any) => ts(b) - ts(a));
 
     for (const w of sorted) {
       const status = String((w as any)?.status ?? '').toLowerCase();
@@ -796,7 +835,7 @@ const ActiveWorkout: React.FC = () => {
         weight: typeof s?.weight === 'number' ? s.weight : 0,
       }));
 
-      const hasSignal = completed.length > 0 || mapped.some((s: { reps: any; weight: any; }) => (s.reps ?? 0) !== 0 || (s.weight ?? 0) !== 0);
+      const hasSignal = completed.length > 0 || mapped.some((s: any) => (s.reps ?? 0) !== 0 || (s.weight ?? 0) !== 0);
       if (hasSignal) return mapped;
     }
 
@@ -846,7 +885,7 @@ const ActiveWorkout: React.FC = () => {
 
     const id = (log?.logId as string) ?? `${log.exerciseId}-${exerciseIndex}`;
 
-    const newLogs = currentWorkout.logs.filter((_, i) => i !== exerciseIndex);
+    const newLogs = currentWorkout.logs.filter((_: any, i: number) => i !== exerciseIndex);
     setCurrentWorkout({ ...currentWorkout, logs: newLogs });
     setOrder((prev) => prev.filter((x) => x !== id));
 
@@ -892,7 +931,7 @@ const ActiveWorkout: React.FC = () => {
     const set = ex.sets[setIndex];
 
     const newLogs = [...currentWorkout.logs];
-    newLogs[exerciseIndex].sets = newLogs[exerciseIndex].sets.filter((_, i) => i !== setIndex);
+    newLogs[exerciseIndex].sets = newLogs[exerciseIndex].sets.filter((_: any, i: number) => i !== setIndex);
 
     setCurrentWorkout({ ...currentWorkout, logs: newLogs });
     appendEvent('set_deleted', { exerciseId: ex.exerciseId, setId: set.id });
@@ -952,7 +991,6 @@ const ActiveWorkout: React.FC = () => {
     let n = 0;
     for (const log of currentWorkout.logs) for (const s of log.sets) if (!s.isCompleted) n++;
     setIncompleteCount(n);
-    setIncompletePolicy(n > 0 ? 'delete' : 'keep');
   };
 
   const applyIncompletePolicy = (w: WorkoutSession, policy: IncompletePolicy): WorkoutSession => {
@@ -1015,7 +1053,6 @@ const ActiveWorkout: React.FC = () => {
 
     const completePayload = { workout: finished2, events, restByExerciseId };
 
-    // Always store locally for offline history
     if (user?.id) {
       upsertWorkouts(user.id, [{ id: finished2.id, module: finished2.module, data: finished2 }]);
     }
@@ -1031,7 +1068,6 @@ const ActiveWorkout: React.FC = () => {
       if (user?.id) enqueuePending(user.id, finished2.id, completePayload);
     }
 
-    // Templates: queue offline if needed
     try {
       if (opts.saveAsTemplate && user?.id) {
         const name = opts.templateName?.trim() || `Template ${new Date(finished2.startTime).toLocaleDateString('en-US')}`;
@@ -1146,7 +1182,6 @@ const ActiveWorkout: React.FC = () => {
     }
   };
 
-  // Draft persistence during workout
   useEffect(() => {
     if (!currentWorkout) return;
 
@@ -1164,50 +1199,70 @@ const ActiveWorkout: React.FC = () => {
 
   if (!currentWorkout) return null;
 
-  // Bottom nav spacing
   const bottomNavPx = 84;
-
-  // Floating button bottom: safe-area + nav + padding
   const floatingBottom = 'calc(env(safe-area-inset-bottom, 0px) + 96px)';
+
+  const reorderSideClass = handMode === 'right' ? 'right-4' : 'left-4';
 
   return (
     <div className="min-h-screen bg-[var(--bg)] text-[var(--text)] animate-in slide-in-from-right duration-300">
-      {/* SUB-HEADER (timer back) */}
-      <div className="sticky top-16 left-0 right-0 z-[90] bg-[var(--primary)] text-white px-6 py-3 flex items-center justify-between shadow-lg">
-        <button
-          type="button"
-          onClick={cancelWorkout}
-          className="p-2 bg-white/10 hover:bg-white/20 rounded-xl transition-colors"
-          aria-label="Cancel workout"
-        >
-          <X size={18} />
-        </button>
+      {/* Your workout control pill stays as-is (you can paste your final version here) */}
+      <div className="fixed z-[140] top-[calc(env(safe-area-inset-top)+25px)] left-0 right-0 flex justify-center">
+        {/* CENTERED WORKOUT CONTROLS */}
+        <div className="sticky z-[115] top-[calc(env(safe-area-inset-top)+48px)]">
+          <div className="relative w-full flex justify-center">
+            <div
+              className="
+                inline-flex items-center gap-2
+                bg-[var(--glass)] border border-[var(--border)]
+                backdrop-blur-md
+                rounded-full
+                px-4 py-1.5
+                shadow-lg
+                translate-x-8
+              "
+            >
+              {/* Cancel */}
+              <button
+                type="button"
+                onClick={cancelWorkout}
+                className="p-1.5 rounded-full hover:bg-white/15 transition-colors"
+                aria-label="Cancel workout"
+              >
+                <X size={16} />
+              </button>
 
-        <div className="flex items-center gap-3">
-          <div className="flex flex-col items-end">
-            <span className="text-[8px] font-black uppercase tracking-[0.2em] opacity-80">Duration</span>
-            <span className="text-lg font-black italic leading-none">{formatTime(timer)}</span>
-          </div>
+              {/* Time */}
+              <div className="flex flex-col items-center leading-none">
+                <span className="text-[8px] font-black uppercase tracking-[0.25em] opacity-70">
+                  Duration
+                </span>
+                <span className="text-sm font-black italic tabular-nums">
+                  {formatTime(timer)}
+                </span>
+              </div>
 
-          <div className="w-px h-8 bg-white/20" />
-
-          <div className="flex flex-col items-start">
-            <span className="text-[8px] font-black uppercase tracking-[0.2em] opacity-80">Status</span>
-            <span className="text-sm font-black italic leading-none uppercase">Live Session</span>
+              {/* Finish */}
+              <button
+                type="button"
+                onClick={openFinish}
+                className="
+                  px-3 py-1.5
+                  rounded-full
+                  bg-white text-[var(--primary)]
+                  text-[9px] font-black uppercase tracking-widest
+                  active:scale-95 transition-transform
+                "
+              >
+                Finish
+              </button>
+            </div>
           </div>
         </div>
 
-        <button
-          type="button"
-          onClick={openFinish}
-          className="bg-white text-[var(--primary)] px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-sm hover:bg-white/90 active:scale-95 transition-all"
-        >
-          Finish
-        </button>
       </div>
-
-      {/* CONTENT (relative so reorder overlay is within it; AppShell/bottom nav remain visible) */}
-      <div className="relative p-6 space-y-6 pb-40">
+      {/* CONTENT: reduced side padding so cards use width */}
+      <div className="relative px-3 sm:px-4 pt-2 space-y-3 pb-40">
         <AnimatePresence initial={false}>
           {order.map((id) => {
             const idx = (currentWorkout.logs as any[]).findIndex((l) => l?.logId === id);
@@ -1240,63 +1295,73 @@ const ActiveWorkout: React.FC = () => {
           })}
         </AnimatePresence>
 
-        {/* Bottom-of-list actions */}
-        <div className="pt-2 space-y-3" style={{ paddingBottom: `${bottomNavPx + 16}px` }}>
+        {/* Bottom CTA: slim */}
+        <div className="pt-2 space-y-2" style={{ paddingBottom: `${bottomNavPx + 18}px` }}>
           <button
             type="button"
             onClick={() => setShowExercisePicker(true)}
-            className="w-full bg-[var(--primary-soft)] text-[var(--primary)] p-6 rounded-[24px] font-black flex items-center justify-center gap-2 border border-[var(--border)] hover:bg-[var(--primary-soft)]/80 transition-colors"
+            className="
+              w-full
+              rounded-2xl
+              border border-[var(--border)]
+              bg-[var(--bg-card)]/50
+              backdrop-blur-md
+              px-4 py-3
+              font-black
+              text-[11px] uppercase tracking-widest
+              flex items-center justify-center gap-2
+              text-[var(--text)]
+              hover:bg-[var(--bg-card)]/70
+              transition-colors
+            "
           >
-            <Plus size={20} strokeWidth={3} />
-            ADD EXERCISE
+            <Plus size={18} strokeWidth={3} />
+            Add exercise
           </button>
 
           <button
             type="button"
             onClick={openFinish}
-            className="w-full bg-[var(--primary)] text-white p-6 rounded-[24px] font-black flex items-center justify-center gap-2 border border-white/10 hover:opacity-95 transition-opacity"
+            className="
+              w-full
+              rounded-2xl
+              border border-white/10
+              bg-[var(--primary)]
+              px-4 py-3
+              font-black
+              text-[11px] uppercase tracking-widest
+              flex items-center justify-center gap-2
+              text-white
+              hover:opacity-95
+              transition-opacity
+            "
           >
-            FINISH WORKOUT
+            Finish workout
           </button>
         </div>
 
-        {/* REORDER OVERLAY (content-only; does NOT cover AppShell / bottom nav) */}
+        {/* REORDER OVERLAY unchanged */}
         {showReorderTab && (
-          <div
-            className="absolute inset-x-0 top-0 z-[60]"
-            style={{ bottom: `${bottomNavPx}px` }} // keep bottom nav visible
-          >
-            {/* Backdrop */}
+          <div className="absolute inset-x-0 top-0 z-[60]" style={{ bottom: `${bottomNavPx}px` }}>
             <div className="absolute inset-0 bg-black/55 backdrop-blur-sm" />
 
-            {/* Panel */}
             <div className="absolute inset-0 bg-[var(--bg)] text-[var(--text)]">
-              {/* Title */}
-              <div className="sticky top-0 z-[2] px-6 py-4 bg-[var(--bg)]/85 backdrop-blur-xl border-b border-[var(--border)]">
+              <div className="sticky top-0 z-[2] px-4 py-3 bg-[var(--bg)]/85 backdrop-blur-xl border-b border-[var(--border)]">
                 <h3 className="text-center text-[10px] font-black uppercase tracking-[0.25em] text-[var(--text-muted)]">
                   Reorder Exercises
                 </h3>
               </div>
 
-              {/* Scroll area */}
               <div
                 ref={reorderScrollRef}
-                className="px-6 pt-4 pb-40 overflow-y-auto"
+                className="px-4 pt-3 pb-40 overflow-y-auto"
                 style={{ WebkitOverflowScrolling: 'touch' as any }}
               >
-                <Reorder.Group
-                  axis="y"
-                  values={order}
-                  onReorder={applyOrderToWorkout}
-                  className="space-y-2"
-                  style={{ touchAction: 'none' }}
-                >
+                <Reorder.Group axis="y" values={order} onReorder={applyOrderToWorkout} className="space-y-2" style={{ touchAction: 'none' }}>
                   <AnimatePresence initial={false}>
                     {order.map((id, pos) => {
                       const logIndex = (currentWorkout.logs as any[]).findIndex((l) => l?.logId === id);
-                      const log = (logIndex >= 0
-                        ? currentWorkout.logs[logIndex]
-                        : null) as any as ExerciseLogWithId | null;
+                      const log = (logIndex >= 0 ? currentWorkout.logs[logIndex] : null) as any as ExerciseLogWithId | null;
                       if (!log) return null;
 
                       return (
@@ -1315,17 +1380,27 @@ const ActiveWorkout: React.FC = () => {
                   </AnimatePresence>
                 </Reorder.Group>
 
-                {/* Add Exercise (formatted nicely) */}
                 <button
                   type="button"
                   onClick={() => {
                     setShowExercisePicker(true);
                     setShowReorderTab(false);
                   }}
-                  className="w-full mt-4 bg-[var(--primary-soft)] text-[var(--primary)] p-6 rounded-[24px] font-black flex items-center justify-center gap-2 border border-[var(--border)] hover:bg-[var(--primary-soft)]/80 transition-colors"
+                  className="
+                    w-full mt-3
+                    rounded-2xl
+                    border border-[var(--border)]
+                    bg-[var(--bg-card)]/50
+                    px-4 py-3
+                    font-black
+                    text-[11px] uppercase tracking-widest
+                    flex items-center justify-center gap-2
+                    hover:bg-[var(--bg-card)]/70
+                    transition-colors
+                  "
                 >
                   <Plus size={18} strokeWidth={3} />
-                  ADD EXERCISE
+                  Add exercise
                 </button>
               </div>
             </div>
@@ -1333,13 +1408,14 @@ const ActiveWorkout: React.FC = () => {
         )}
       </div>
 
-      {/* Floating Reorder Toggle (always visible; stable on scroll) */}
+      {/* Floating Reorder Toggle (unchanged) */}
       <button
         type="button"
         onClick={() => setShowReorderTab((v) => !v)}
         className={[
-          'fixed left-4 z-[97] rounded-2xl border shadow-[0_12px_30px_rgba(0,0,0,0.22)] px-4 h-12 flex items-center gap-2 font-black uppercase tracking-widest text-[10px]',
+          'fixed z-[97] rounded-2xl border shadow-[0_12px_30px_rgba(0,0,0,0.22)] px-4 h-12 flex items-center gap-2 font-black uppercase tracking-widest text-[10px]',
           'will-change-transform translate-z-0 transition-colors',
+          reorderSideClass,
           showReorderTab ? 'bg-red-500 text-white border-red-600' : 'bg-[var(--bg-card)] text-[var(--text)] border-[var(--border)]',
         ].join(' ')}
         style={{ bottom: floatingBottom }}
@@ -1350,7 +1426,6 @@ const ActiveWorkout: React.FC = () => {
         {showReorderTab ? 'Done' : 'Reorder'}
       </button>
 
-      {/* Exercise Picker Modal (WORKS again) */}
       <ExerciseLibraryModal
         open={showExercisePicker}
         title="ADD EXERCISES"
@@ -1360,16 +1435,12 @@ const ActiveWorkout: React.FC = () => {
         onClose={() => setShowExercisePicker(false)}
       />
 
-      {/* Rest config modal */}
       {restConfigForExerciseId && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[110] flex flex-col justify-end p-4">
           <div className="bg-[var(--bg)] text-[var(--text)] rounded-[40px] p-6 w-full max-w-md mx-auto border border-[var(--border)] animate-in slide-in-from-bottom duration-300">
             <div className="flex justify-between items-center mb-5">
               <h3 className="text-xl font-black italic">REST PER EXERCISE</h3>
-              <button
-                onClick={() => setRestConfigForExerciseId(null)}
-                className="p-2 bg-[var(--bg-card)] border border-[var(--border)] rounded-full"
-              >
+              <button onClick={() => setRestConfigForExerciseId(null)} className="p-2 bg-[var(--bg-card)] border border-[var(--border)] rounded-full">
                 <X size={18} />
               </button>
             </div>
@@ -1404,18 +1475,14 @@ const ActiveWorkout: React.FC = () => {
         </div>
       )}
 
-      {/* Finish Modal (with spacer so bottom nav doesn’t cover it) */}
       {showFinish && currentWorkout && (
         <>
-          <div
-            className="fixed left-0 right-0 bottom-0 z-[119] pointer-events-none"
-            style={{ height: `${bottomNavPx + 12}px` }}
-          />
+          <div className="fixed left-0 right-0 bottom-0 z-[119] pointer-events-none" style={{ height: `${bottomNavPx + 12}px` }} />
           <FinishWorkoutModal
             open={showFinish}
             onClose={() => setShowFinish(false)}
             workout={currentWorkout}
-            templateIdUsed={currentWorkout.templateIdUsed ?? null} 
+            templateIdUsed={currentWorkout.templateIdUsed ?? null}
             onConfirmFinish={onConfirmFinishFromModal}
           />
         </>

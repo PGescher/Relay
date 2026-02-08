@@ -2,15 +2,14 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Play, History, LayoutTemplate, TrendingUp, UploadCloud } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
-import type { WorkoutSession } from '@relay/shared';
+import { WorkoutStatus, type WorkoutSession } from '@relay/shared';
 import ActiveWorkout from './ActiveWorkout';
 import GymHistory from './GymHistory';
 import GymTemplates from './GymTemplates';
-import GymAnalytics from './AnalyticsPanel';
 import GymImportExport from './GymImportExport';
 import { useWorkoutDraftRestore } from './useWorkoutDraftRestore';
 
-const TABS = ['history', 'templates', 'analytics', 'import'] as const;
+const TABS = ['history', 'templates', 'import'] as const;
 type Tab = (typeof TABS)[number];
 
 const uid = () => (crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`);
@@ -25,7 +24,7 @@ const GymDashboard: React.FC = () => {
 
   // If user is currently in an active workout route, we show ActiveWorkout there,
   // BUT also: if state has workout AND we navigated here, allow resume.
-  const hasActive = !!currentWorkout && currentWorkout.status === 'active';
+  const hasActive = !!currentWorkout && currentWorkout.status === WorkoutStatus.active;
 
   // Pull completed workouts from DB (optional but nice)
   useEffect(() => {
@@ -62,7 +61,7 @@ const GymDashboard: React.FC = () => {
       dataVersion: 1,
       id: uid(),
       module: 'GYM',
-      status: 'active',
+      status: WorkoutStatus.active,
 
       startTime: now,
       updatedAt: now,
@@ -81,7 +80,6 @@ const GymDashboard: React.FC = () => {
     () => [
       { id: 'history' as const, label: 'History', icon: History },
       { id: 'templates' as const, label: 'Templates', icon: LayoutTemplate },
-      { id: 'analytics' as const, label: 'Analytics', icon: TrendingUp },
       { id: 'import' as const, label: 'Import/Export', icon: UploadCloud },
     ],
     []
@@ -163,7 +161,6 @@ const GymDashboard: React.FC = () => {
         setCurrentWorkout(workout);
         navigate('/activities/gym/active');
       }} />}
-      {tab === 'analytics' && <GymAnalytics />}
       {tab === 'import' && <GymImportExport />}
     </div>
   );

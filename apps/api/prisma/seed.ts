@@ -1,6 +1,6 @@
 import bcrypt from 'bcrypt';
 import { prisma } from '../src/prisma.js';
-import { UserRole, ExerciseType, BodyRegion, Equipment } from '@prisma/client';
+import { UserRole, ExerciseType, BodyRegion, Equipment, WorkoutStatus } from '@prisma/client';
 
 const ROUNDS = 12;
 
@@ -96,7 +96,7 @@ async function main() {
     data: {
       userId: dev.id,
       module: 'GYM' as any,
-      status: 'COMPLETED',
+      status: WorkoutStatus.completed,
       startTime: new Date(Date.now() - 60 * 60 * 1000),
       endTime: new Date(),
       data: { seed: true },

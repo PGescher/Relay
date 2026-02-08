@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Users, Zap, TrendingUp, ArrowRight, Flame, Shield, Activity } from 'lucide-react';
-import { getVolume, getStreakData, getScientificInsights } from '../gym-tracker/analyticsUtils';
+import { getVolume, getStreakData, getScientificInsights } from '../analytics/analyticsUtils';
 import { useApp } from '../../context/AppContext';
 
 const HomeHub: React.FC<{ user: any }> = ({ user }) => {

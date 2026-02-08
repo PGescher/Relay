@@ -1,17 +1,13 @@
-// GymTemplates.tsx (relevante Änderungen)
+// apps/web/src/modules/gym/GymTemplates.tsx
 import React, { useEffect, useMemo, useState } from 'react';
 import { Plus, Play, Pencil, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { WorkoutSession, WorkoutTemplate, WorkoutStatus } from '@relay/shared';
 
 import { useApp } from '../../context/AppContext';
-
 import SyncButton from '../../components/ui/SyncButton';
 
-
-//import { TemplateBuilderModal } from './TemplateBuilderModal';
-
-const uid = () => (crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`);
+const uid = () => crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
 type Props = {
   onStartTemplate?: (workout: WorkoutSession) => void;
@@ -23,8 +19,6 @@ const GymTemplates: React.FC<Props> = ({ onStartTemplate }) => {
   const [templates, setTemplates] = useState<WorkoutTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
-
-  const [showBuilder, setShowBuilder] = useState(false);
 
   const [deleteArmedId, setDeleteArmedId] = useState<string | null>(null);
 
@@ -57,7 +51,6 @@ const GymTemplates: React.FC<Props> = ({ onStartTemplate }) => {
     setTemplates((prev) => prev.filter((x) => x.id !== id));
   };
 
-
   const startFromTemplate = (t: WorkoutTemplate) => {
     const ex = t.data.exercises;
 
@@ -69,25 +62,30 @@ const GymTemplates: React.FC<Props> = ({ onStartTemplate }) => {
       status: WorkoutStatus.active,
       module: 'GYM',
       templateIdUsed: t.id,
+
+      // ✅ IMPORTANT: include logId so ActiveWorkout can build `order` immediately
       logs: ex.map((e) => ({
+        logId: uid(),
         exerciseId: e.exerciseId,
         exerciseName: e.exerciseName,
         restSecDefault: e.restSec,
-        sets: (e.sets?.length ? e.sets : Array.from({ length: e.targetSets }).map(() => ({ reps: 0, weight: 0 }))).map((s) => ({
-          id: uid(),
-          reps: s.reps ?? 0,
-          weight: s.weight ?? 0,
-          isCompleted: false,
-          restPlannedSec: e.restSec,
-        })),
-      })),
+        sets: (e.sets?.length ? e.sets : Array.from({ length: e.targetSets }).map(() => ({ reps: 0, weight: 0 }))).map(
+          (s) => ({
+            id: uid(),
+            reps: s.reps ?? 0,
+            weight: s.weight ?? 0,
+            isCompleted: false,
+            restPlannedSec: e.restSec,
+          })
+        ),
+      })) as any,
     };
 
     if (onStartTemplate) {
       onStartTemplate(workout);
     } else {
-      setCurrentWorkout(workout); // Im Globalen State speichern
-      navigate('/activities/gym/active'); // Zur aktiven Session springen
+      setCurrentWorkout(workout);
+      navigate('/activities/gym/active');
     }
   };
 
@@ -109,14 +107,17 @@ const GymTemplates: React.FC<Props> = ({ onStartTemplate }) => {
         <h2 className="text-2xl font-[900] italic text-[var(--text)]">
           TEMPLATES<span className="text-[var(--primary)]">.</span>
         </h2>
-        <SyncButton module="GYM" onDone={() => load()} />
-        <button
-          onClick={() => navigate('/activities/gym/templates/new')}
-          className="inline-flex items-center gap-2 rounded-2xl bg-[var(--primary)] text-white px-4 py-3"
-        >
-          <Plus size={16} />
-          <span className="text-[10px] font-[900] uppercase tracking-widest">New</span>
-        </button>
+
+        <div className="flex items-center gap-2">
+          <SyncButton module="GYM" onDone={() => load()} />
+          <button
+            onClick={() => navigate('/activities/gym/templates/new')}
+            className="inline-flex items-center gap-2 rounded-2xl bg-[var(--primary)] text-white px-4 py-3"
+          >
+            <Plus size={16} />
+            <span className="text-[10px] font-[900] uppercase tracking-widest">New</span>
+          </button>
+        </div>
       </div>
 
       {loading ? (
@@ -146,6 +147,8 @@ const GymTemplates: React.FC<Props> = ({ onStartTemplate }) => {
                         startFromTemplate(t);
                       }}
                       className="inline-flex items-center gap-2 rounded-2xl bg-[var(--primary)] text-white px-4 py-3"
+                      aria-label="Start template"
+                      title="Start"
                     >
                       <Play size={16} />
                     </button>
@@ -157,6 +160,8 @@ const GymTemplates: React.FC<Props> = ({ onStartTemplate }) => {
                         navigate(`/activities/gym/templates/${t.id}/edit`);
                       }}
                       className="inline-flex items-center justify-center rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] px-4 py-3 text-[var(--text)]"
+                      aria-label="Edit template"
+                      title="Edit"
                     >
                       <Pencil size={16} />
                     </button>
@@ -178,9 +183,13 @@ const GymTemplates: React.FC<Props> = ({ onStartTemplate }) => {
                         }
                       }}
                       className={[
-                        "inline-flex items-center justify-center rounded-2xl border px-4 py-3 transition-colors",
-                        deleteArmedId === t.id ? "bg-red-600 text-white border-red-600" : "bg-[var(--bg-card)] text-[var(--text)] border-[var(--border)]"
+                        'inline-flex items-center justify-center rounded-2xl border px-4 py-3 transition-colors',
+                        deleteArmedId === t.id
+                          ? 'bg-red-600 text-white border-red-600'
+                          : 'bg-[var(--bg-card)] text-[var(--text)] border-[var(--border)]',
                       ].join(' ')}
+                      aria-label="Delete template"
+                      title={deleteArmedId === t.id ? 'Confirm delete' : 'Delete'}
                     >
                       <Trash2 size={16} />
                       <span className="ml-2 text-[10px] font-[900] uppercase tracking-widest">
@@ -199,13 +208,3 @@ const GymTemplates: React.FC<Props> = ({ onStartTemplate }) => {
 };
 
 export default GymTemplates;
-
-/*
-
-      <TemplateBuilderModal
-        open={showBuilder}
-        onClose={() => setShowBuilder(false)}
-        exercises={EXERCISES}
-        onCreate={createTemplate}
-      />
-*/

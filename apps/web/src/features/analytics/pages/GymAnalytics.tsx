@@ -6,19 +6,20 @@ import {
 import { 
   Trophy, Activity, Beaker, Book, Zap, ChevronLeft, ChevronRight, Scale, ShieldCheck, Flame
 } from 'lucide-react';
-import { useApp } from '../../context/AppContext';
+import { useApp } from '../../../context/AppContext';
 import { 
   calculate1RM, 
   getMuscleGroupSplits, 
   getVolume, 
   getScientificInsights, // <-- Check this name
   getLoreFacts 
-} from './analyticsUtils';
+} from '../analyticsUtils';
 
 import { WorkoutStatus } from '@relay/shared';
 
-const AnalyticsPanel: React.FC = () => {
-  const { workoutHistory } = useApp();
+const GymAnalytics: React.FC<{ workoutHistory: WorkoutSession[] }> = ({ workoutHistory }) => {
+  // everything else stays the same
+  //const { workoutHistory } = useApp();
   const [mode, setMode] = useState<'science' | 'lore'>('science');
   const [exerciseId, setExerciseId] = useState('all');
 
@@ -177,4 +178,4 @@ const ChartTooltip = ({ active, payload }: any) => {
   return null;
 };
 
-export default AnalyticsPanel;
+export default GymAnalytics;
