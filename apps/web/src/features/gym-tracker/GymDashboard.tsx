@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Play, History, LayoutTemplate, TrendingUp, UploadCloud } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { WorkoutStatus, type WorkoutSession } from '@relay/shared';
-import ActiveWorkout from './ActiveWorkout';
+import ActiveWorkout from './GymExpandedSessionView';
 import GymHistory from './GymHistory';
 import GymTemplates from './GymTemplates';
 import GymImportExport from './GymImportExport';
