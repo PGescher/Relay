@@ -1,5 +1,8 @@
 import { z } from 'zod';
 
+export * from './session';
+
+
 // =======================
 // Auth schemas (NEW)
 // =======================

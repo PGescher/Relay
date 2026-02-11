@@ -6,11 +6,18 @@ import { Link } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 import { ActiveWorkoutOverlay, type ActiveWorkoutOverlayHandle } from '../../features/gym-tracker/ActiveWorkout';
 
+import type { ActiveSession } from '@relay/shared';
+
 type OverlayMode = 'expanded' | 'minimized';
 
 const FAST = { type: 'spring', stiffness: 900, damping: 52, mass: 0.6 } as const;
 
 const MINIMIZE_EVENT = 'relay:overlay:minimize';
+
+
+
+const [activeSession, setActiveSession] = useState<ActiveSession | null>(null);
+
 
 export const ActiveSessionOverlay: React.FC = () => {
   const reduceMotion = useReducedMotion();
