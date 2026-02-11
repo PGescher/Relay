@@ -14,7 +14,8 @@ type Props = {
 };
 
 const GymTemplates: React.FC<Props> = ({ onStartTemplate }) => {
-  const { setCurrentWorkout } = useApp();
+  const { startSession, requestOverlayExpand } = useApp();
+
 
   const [templates, setTemplates] = useState<WorkoutTemplate[]>([]);
   const [loading, setLoading] = useState(true);
@@ -59,13 +60,11 @@ const GymTemplates: React.FC<Props> = ({ onStartTemplate }) => {
       id: uid(),
       startTime: Date.now(),
       updatedAt: Date.now(),
-      status: WorkoutStatus.active,
+      status: 'active',       
       module: 'GYM',
       templateIdUsed: t.id,
-
-      // ✅ IMPORTANT: include logId so ActiveWorkout can build `order` immediately
       logs: ex.map((e) => ({
-        logId: uid(),
+        // in deinem shared gibt's eig. kein logId – wenn du's willst: bitte in Typ aufnehmen
         exerciseId: e.exerciseId,
         exerciseName: e.exerciseName,
         restSecDefault: e.restSec,
@@ -78,16 +77,19 @@ const GymTemplates: React.FC<Props> = ({ onStartTemplate }) => {
             restPlannedSec: e.restSec,
           })
         ),
-      })) as any,
+      })),
     };
 
     if (onStartTemplate) {
       onStartTemplate(workout);
-    } else {
-      setCurrentWorkout(workout);
-      navigate('/activities/gym/active');
+      return;
     }
+
+    startSession('GYM', workout);      // ✅ statt setCurrentWorkout
+    requestOverlayExpand();            // ✅ optional: overlay direkt auf
+    navigate('/activities/gym');       // ✅ oder wohin auch immer dein Dashboard ist
   };
+
 
   const createTemplate = async (payload: WorkoutTemplate) => {
     await fetch('/api/templates/gym', {

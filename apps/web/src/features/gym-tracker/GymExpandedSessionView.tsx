@@ -96,7 +96,29 @@ export const ActiveWorkoutOverlay = forwardRef<
   const reduceMotion = useReducedMotion();
 
   const app = useApp() as any;
-  const { currentWorkout, setCurrentWorkout, setWorkoutHistory, workoutHistory } = app;
+  const {
+    activeSession,
+    setActiveSessionState,
+    cancelSession,
+    finishSession,
+    setWorkoutHistory,
+    workoutHistory,
+    startSession,
+  } = app;
+
+  const currentWorkout: WorkoutSession | null =
+    activeSession?.module === 'GYM' && activeSession.lifecycle === 'ACTIVE'
+      ? (activeSession.state as WorkoutSession)
+      : null;
+
+  const setCurrentWorkout = (next: WorkoutSession | null) => {
+    if (!next) {
+      cancelSession?.();
+      return;
+    }
+    setActiveSessionState?.(next);
+  };
+
   const navigate = useNavigate();
   const { user, token } = useAuth();
 
@@ -147,8 +169,8 @@ export const ActiveWorkoutOverlay = forwardRef<
     if (currentWorkout) return;
 
     const draft = loadLastWorkoutDraft();
-    if (draft?.workout?.status === WorkoutStatus.active) {
-      setCurrentWorkout(draft.workout);
+    if (draft?.workout?.status === "active") {
+      startSession?.('GYM', draft.workout);
       setEvents(draft.events ?? []);
       setRestByExerciseId(draft.restByExerciseId ?? {});
       return;
@@ -274,7 +296,7 @@ export const ActiveWorkoutOverlay = forwardRef<
   }, [showReorderTab]);
 
   const lastLogByExerciseId = useMemo(() => {
-    const completed = workoutHistory.filter((w: WorkoutSession) => w.status === WorkoutStatus.completed);
+    const completed = workoutHistory.filter((w: WorkoutSession) => w.status === "completed");
     const map = new Map<string, ExerciseLog>();
     for (const w of completed) {
       for (const log of w.logs) {
@@ -542,7 +564,7 @@ export const ActiveWorkoutOverlay = forwardRef<
     if (confirm('Cancel workout? Data will be lost.')) {
       appendEvent('workout_cancelled', {});
       clearWorkoutDraft(currentWorkout.id);
-      setCurrentWorkout(null);
+      cancelSession?.();
       navigate('/activities/gym', { replace: true });
     }
   }, [currentWorkout, stopRest, navigate]);
@@ -630,7 +652,7 @@ export const ActiveWorkoutOverlay = forwardRef<
       ...currentWorkout,
       dataVersion: 1,
       endTime: now,
-      status: WorkoutStatus.completed,
+      status: "completed",
       durationSec: Math.round((now - currentWorkout.startTime) / 1000),
       rpeOverall: opts.rpeOverall,
     };
@@ -732,9 +754,12 @@ export const ActiveWorkoutOverlay = forwardRef<
     clearWorkoutDraft(finished2.id);
 
     setWorkoutHistory([finished2, ...workoutHistory]);
-    setCurrentWorkout(null);
+
+    // close UI first
     setShowFinish(false);
     setFinishing(false);
+
+    await finishSession?.();
 
     if (pushed && user?.id && token) {
       syncNow({ userId: user.id, token, module: 'GYM' }).catch(() => {});

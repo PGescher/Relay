@@ -1,44 +1,24 @@
 // apps/web/src/session/moduleRegistry.ts
+//
+// Feature modules register their adapters when they are loaded (e.g. in the
+// module's dashboard / route entry). AppShell and the session kernel only
+// depend on this registry — never on feature imports.
 
 import type { SessionModuleAdapter, SessionModuleKey } from '@relay/shared';
 
-type AnyAdapter = SessionModuleAdapter<any, any>;
+const adapters = new Map<SessionModuleKey, SessionModuleAdapter<any, any>>();
 
-const registry = new Map<SessionModuleKey, AnyAdapter>();
-
-/**
- * Register a module adapter.
- * Should be called once at app startup.
- */
-export function registerModule(adapter: AnyAdapter) {
-  if (registry.has(adapter.module)) {
-    // prevent silent overwrites (debug safety)
-    throw new Error(`Session module already registered: ${adapter.module}`);
-  }
-  registry.set(adapter.module, adapter);
+export function registerModule(adapter: SessionModuleAdapter<any, any>) {
+  adapters.set(adapter.module, adapter);
 }
 
-/**
- * Get adapter for a module key.
- */
-export function getModuleAdapter(module: SessionModuleKey): AnyAdapter {
-  const adapter = registry.get(module);
+export function getModuleAdapter(module: SessionModuleKey): SessionModuleAdapter<any, any> {
+  const adapter = adapters.get(module);
   if (!adapter) {
-    throw new Error(`No session module adapter registered for: ${module}`);
+    throw new Error(
+      `No session module adapter registered for module "${String(module)}". ` +
+        `Make sure the feature bundle calls registerModule(adapter) before starting/restoring sessions.`
+    );
   }
   return adapter;
-}
-
-/**
- * Useful for debugging / future module screens.
- */
-export function listRegisteredModules(): SessionModuleKey[] {
-  return Array.from(registry.keys());
-}
-
-/**
- * Test helper / dev convenience.
- */
-export function __clearRegistryForTests() {
-  registry.clear();
 }

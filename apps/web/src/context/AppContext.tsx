@@ -3,6 +3,13 @@ import React, { createContext, useContext, useMemo, useState, ReactNode, useEffe
 import { useNavigate } from 'react-router-dom';
 import type { WorkoutSession } from '@relay/shared';
 
+import type { ActiveSession, SessionModuleKey } from '@relay/shared';
+import { ACTIVE_SESSION_VERSION } from '@relay/shared';
+
+import { getModuleAdapter } from '../session/moduleRegistry';
+
+const ACTIVE_SESSION_STORAGE_KEY = 'relay:activeSession:v1';
+
 export type HandMode = 'right' | 'left';
 export type NavDock = 'left' | 'center' | 'right';
 
@@ -11,10 +18,16 @@ export type ActiveOverlayState =
   | { mode: 'expanded' }
   | { mode: 'minimized'; dock: 'left' | 'right' };
 
-
 interface AppContextType {
-  currentWorkout: WorkoutSession | null;
-  setCurrentWorkout: (workout: WorkoutSession | null) => void;
+  activeSession: ActiveSession | null;
+  setActiveSessionState: (nextState: unknown) => void;
+
+  /** Starts (or replaces) the single active session. */
+  startSession: (module: SessionModuleKey, payload?: unknown) => void;
+  minimizeSession: () => void;
+  expandSession: () => void;
+  finishSession: () => Promise<void>;
+  cancelSession: () => void;
 
   workoutHistory: WorkoutSession[];
   setWorkoutHistory: React.Dispatch<React.SetStateAction<WorkoutSession[]>>;
@@ -40,7 +53,7 @@ interface AppContextType {
   derivedNavDock: NavDock;
 
   // Active session overlay UI state (to control AppShell interaction + header)
-  activeOverlay: ActiveOverlayState; 
+  activeOverlay: ActiveOverlayState;
   setActiveOverlay: (v: ActiveOverlayState) => void;
 
   // one-way trigger: request the session overlay to expand (e.g. from GymDashboard "Resume")
@@ -86,7 +99,19 @@ const saveNavDock = (v: NavDock) => {
 };
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [currentWorkout, setCurrentWorkout] = useState<WorkoutSession | null>(null);
+  const [activeSession, setActiveSession] = useState<ActiveSession | null>(null);
+
+  const setActiveSessionState = (nextState: unknown) => {
+    setActiveSession((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        state: nextState,
+        meta: { ...prev.meta, lastActiveAt: Date.now() },
+      };
+    });
+  };
+
   const [workoutHistory, setWorkoutHistory] = useState<WorkoutSession[]>([]);
   const [isViewingActiveWorkout, setIsViewingActiveWorkout] = useState(false);
 
@@ -133,11 +158,138 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   useEffect(() => saveHandMode(handMode), [handMode]);
   useEffect(() => saveNavDock(navDock), [navDock]);
 
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(ACTIVE_SESSION_STORAGE_KEY);
+      if (!raw) return;
+
+      const parsed = JSON.parse(raw) as ActiveSession;
+      if (!parsed) return;
+
+      // Version gate (future migrations)
+      if ((parsed.meta?.version ?? 0) !== ACTIVE_SESSION_VERSION) return;
+
+      // Only restore unfinished sessions
+      if (parsed.lifecycle === 'ACTIVE') {
+        const adapter = getModuleAdapter(parsed.module);
+        const restored: ActiveSession = adapter.deserialize
+          ? { ...parsed, state: adapter.deserialize(parsed.state) }
+          : parsed;
+
+        setActiveSession(restored);
+      }
+    } catch (e) {
+      console.warn('Failed to restore active session', e);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!activeSession) {
+      localStorage.removeItem(ACTIVE_SESSION_STORAGE_KEY);
+      return;
+    }
+
+    try {
+      const adapter = getModuleAdapter(activeSession.module);
+      const persisted: ActiveSession = adapter.serialize
+        ? { ...activeSession, state: adapter.serialize(activeSession.state) }
+        : activeSession;
+
+      localStorage.setItem(ACTIVE_SESSION_STORAGE_KEY, JSON.stringify(persisted));
+    } catch (e) {
+      console.warn('Failed to persist active session', e);
+    }
+  }, [activeSession]);
+
+  const startSession = (module: SessionModuleKey, payload?: unknown) => {
+    const id = crypto.randomUUID?.() ?? `${Date.now()}`;
+
+    const adapter = getModuleAdapter(module);
+    const initialState = adapter.createInitialState(payload);
+
+    const session: ActiveSession = {
+      id,
+      module,
+      lifecycle: 'ACTIVE',
+      ui: {
+        overlay: 'EXPANDED',
+        dockSide: 'RIGHT',
+      },
+      state: initialState,
+      meta: {
+        startedAt: Date.now(),
+        lastActiveAt: Date.now(),
+        version: ACTIVE_SESSION_VERSION,
+        persistenceKey: `session:${module}:${id}`,
+        restorePolicy: 'ifNotFinished',
+      },
+    };
+
+    setActiveSession(session);
+  };
+
+  const minimizeSession = () => {
+    setActiveSession((prev) =>
+      prev
+        ? {
+            ...prev,
+            ui: { ...prev.ui, overlay: 'MINIMIZED' },
+            meta: { ...prev.meta, lastActiveAt: Date.now() },
+          }
+        : prev
+    );
+  };
+
+  const expandSession = () => {
+    setActiveSession((prev) =>
+      prev
+        ? {
+            ...prev,
+            ui: { ...prev.ui, overlay: 'EXPANDED' },
+            meta: { ...prev.meta, lastActiveAt: Date.now() },
+          }
+        : prev
+    );
+  };
+
+  const finishSession = async () => {
+    if (!activeSession) return;
+
+    try {
+      const adapter = getModuleAdapter(activeSession.module);
+      await adapter.onFinish({ sessionId: activeSession.id, state: activeSession.state });
+    } catch (e) {
+      console.warn('Session finish hook failed', e);
+    }
+
+    setActiveSession(null);
+  };
+
+
+  const cancelSession = () => {
+    if (!activeSession) return;
+
+    try {
+      const adapter = getModuleAdapter(activeSession.module);
+      adapter.onCancel?.({ sessionId: activeSession.id, state: activeSession.state });
+    } catch (e) {
+      console.warn('Session cancel hook failed', e);
+    }
+
+    setActiveSession(null);
+  };
+
+
   return (
     <AppContext.Provider
       value={{
-        currentWorkout,
-        setCurrentWorkout,
+        setActiveSessionState,
+        activeSession,
+        startSession,
+        minimizeSession,
+        expandSession,
+        finishSession,
+        cancelSession,
         workoutHistory,
         setWorkoutHistory,
         setActiveTab,

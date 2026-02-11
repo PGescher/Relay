@@ -75,7 +75,7 @@ router.post('/gym/complete', requireAuth, async (req: AuthedRequest, res) => {
         update: {
           userId: req.userId!,
           module: workout.module, // must match enum strings now ('GYM')
-          status: WorkoutStatus.completed,
+          status: "completed",
           startTime: new Date(workout.startTime),
           endTime: new Date(workout.endTime),
           deletedAt: null,
@@ -89,7 +89,7 @@ router.post('/gym/complete', requireAuth, async (req: AuthedRequest, res) => {
           id: workout.id,
           userId: req.userId!,
           module: workout.module,
-          status: WorkoutStatus.completed,
+          status: "completed",
           startTime: new Date(workout.startTime),
           endTime: new Date(workout.endTime),
           data: {
@@ -190,6 +190,15 @@ router.get('/', requireAuth, async (req: AuthedRequest, res) => {
   const module = moduleQ && Object.values(WorkoutModule).includes(moduleQ as WorkoutModule)
     ? (moduleQ as WorkoutModule)
     : undefined;
+
+  // ✅ normalize (accept COMPLETED, completed, Completed, etc.)
+  const normalizedStatus = statusQ ? statusQ.toLowerCase() : undefined;
+
+  const status =
+    normalizedStatus &&
+    Object.values(WorkoutStatus).includes(normalizedStatus as WorkoutStatus)
+      ? (normalizedStatus as WorkoutStatus)
+      : undefined;
 
   try {
     const rows = await prisma.workout.findMany({

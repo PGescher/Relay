@@ -2,38 +2,43 @@
 
 import type { SessionModuleKey } from './SessionTypes';
 
+export type SessionViewApi<TState = unknown> = {
+  setState: (nextState: TState) => void;
+  minimize: () => void;
+  expand: () => void;
+  finish: () => Promise<void>;
+  cancel: () => void;
+};
+
 /**
  * A UI component provided by a module.
- * The concrete framework (React) is defined in the app layer.
+ * Framework (React) lives in app layer; this type stays serializable/framework-agnostic.
+ *
+ * React components are compatible because `(props) => JSX.Element` is assignable to `(props) => unknown`.
  */
 export type SessionViewComponent<Props = any> = (props: Props) => unknown;
 
 export interface SessionModuleAdapter<State = unknown, StartPayload = unknown> {
-  /** Which module this adapter belongs to */
   module: SessionModuleKey;
 
-  /** Create initial module state when a session starts */
   createInitialState(payload?: StartPayload): State;
 
-  /** Expanded overlay UI */
   ExpandedView: SessionViewComponent<{
     sessionId: string;
     state: State;
+    api: SessionViewApi<State>;
   }>;
 
-  /** Minimized pill UI */
   MinimizedView: SessionViewComponent<{
     sessionId: string;
     state: State;
+    api: SessionViewApi<State>;
   }>;
 
-  /** Called when session finishes successfully */
   onFinish(args: { sessionId: string; state: State }): Promise<void> | void;
 
-  /** Optional cancel hook */
   onCancel?(args: { sessionId: string; state: State }): Promise<void> | void;
 
-  /** Optional persistence helpers */
   serialize?(state: State): unknown;
   deserialize?(raw: unknown): State;
 }
